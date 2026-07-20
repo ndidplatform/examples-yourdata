@@ -1,0 +1,65 @@
+version: '3'
+services:
+  yourdata-idp-1:
+    image: ndidplatform/your-data-examples:latest
+    environment:
+      - SERVER_PORT=${EXAMPLE_PORT:-8000}
+      - API_SERVER_ADDRESS=http://api-idp-1:${API_PORT:-8080}
+      - NDID_API_CALLBACK_IP=yourdata-idp-1
+      - NDID_API_CALLBACK_PORT=${EXAMPLE_CALLBACK_PORT:-5000}
+    command: idp
+    ports:
+      - '8000:${EXAMPLE_PORT:-8000}'
+    networks:
+      - ndidplatform
+
+  yourdata-idp-2:
+    image: ndidplatform/your-data-examples:latest
+    environment:
+      - SERVER_PORT=${EXAMPLE_PORT:-8000}
+      - API_SERVER_ADDRESS=http://api-idp-2:${API_PORT:-8080}
+      - NDID_API_CALLBACK_IP=yourdata-idp-2
+      - NDID_API_CALLBACK_PORT=${EXAMPLE_CALLBACK_PORT:-5000}
+    command: idp
+    ports:
+      - '8001:${EXAMPLE_PORT:-8000}'
+    networks:
+      - ndidplatform
+
+  yourdata-rp:
+    image: ndidplatform/your-data-examples:latest
+    environment:
+      - SERVER_PORT=${EXAMPLE_PORT:-8000}
+      - API_SERVER_ADDRESS=http://api-rp:${API_PORT:-8080}
+      - NDID_API_CALLBACK_IP=yourdata-rp
+      - NDID_API_CALLBACK_PORT=${EXAMPLE_CALLBACK_PORT:-5000}
+    command: rp
+    ports:
+      - '9000:${EXAMPLE_PORT:-8000}'
+    networks:
+      - ndidplatform
+
+  yourdata-as:
+    image: ndidplatform/your-data-examples:latest
+    environment:
+      - SERVER_PORT=${EXAMPLE_PORT:-8000}
+      - API_SERVER_ADDRESS=http://api-as:${API_PORT:-8080}
+      - NDID_API_CALLBACK_IP=yourdata-as
+      - NDID_API_CALLBACK_PORT=${EXAMPLE_CALLBACK_PORT:-5000}
+    command: as
+    ports:
+      - '10000:${EXAMPLE_PORT:-8000}'
+    networks:
+      - ndidplatform
+
+  yourdata-frontend:
+    image: ndidplatform/your-data-examples:latest
+    command: frontend
+    ports:
+      - '5173:5173'
+    networks:
+      - ndidplatform
+
+networks:
+  ndidplatform:
+    external: true

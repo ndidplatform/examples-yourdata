@@ -1,0 +1,122 @@
+/* Noto Sans Thai Looped — Thai-first, legible, covers all Latin glyphs. */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+/* ── Design Tokens (Banking/Traditional Finance palette) ─────────────────── */
+@theme {
+  /* Colors */
+  --color-brand-navy:      #0F172A; /* primary — CTA buttons, headers */
+  --color-brand-blue:      #1E3A8A; /* secondary — info, hover */
+  --color-brand-gold:      #A16207; /* accent — trust signal, checkmarks */
+  --color-brand-gold-light: #FEF3C7; /* accent tint — selected state bg */
+
+  /* Semantic surface tokens */
+  --color-page-bg:         #F8FAFC;
+  --color-card-bg:         #FFFFFF;
+  --color-muted-bg:        #E8ECF1;
+  --color-border:          #E2E8F0;
+
+  /* Semantic text tokens */
+  --color-text-primary:    #020617; /* 20:1 contrast on #F8FAFC */
+  --color-text-secondary:  #64748B; /* 4.7:1 on white — helper text only */
+  --color-text-on-dark:    #FFFFFF;
+
+  /* Feedback tokens */
+  --color-error:           #DC2626;
+  --color-error-bg:        #FEF2F2;
+  --color-error-text:      #991B1B; /* 7.1:1 on #FEF2F2 */
+  --color-success:         #166534;
+  --color-success-bg:      #F0FDF4;
+
+  /* Typography */
+  --font-sans: 'Noto Sans Thai Looped', system-ui, sans-serif;
+
+  /* Border radius */
+  --radius-sm:  6px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-2xl: 24px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-modal: 0 10px 25px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06);
+}
+
+/* ── Base Styles ─────────────────────────────────────────────────────────── */
+html {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background: var(--color-page-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Focus Ring ──────────────────────────────────────────────────────────── */
+/* Applied globally — components must not override with outline: none */
+:focus-visible {
+  outline: 3px solid var(--color-brand-navy);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Reduced Motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Consent Wizard Animations ───────────────────────────────────────────── */
+@keyframes pulse-out {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes popIn {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.pulse-ring {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+.pulse-ring::before,
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #0F172A;
+  animation: pulse-out 2s ease-out infinite;
+}
+.pulse-ring::after {
+  animation-delay: 1s;
+}
+.pulse-ring-inner {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: #0F172A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

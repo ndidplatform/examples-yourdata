@@ -1,0 +1,152 @@
+# Local development compose — fully self-contained, no real NDID platform needed.
+#
+# Usage:
+#   cd docker
+#   docker build -f Dockerfile -t ndidplatform/your-data-examples:latest ..
+#   docker compose -f docker-compose.dev.yml up
+#
+# The 'setup' service waits for all nodes to be ready, then registers the test
+# identity automatically. Front-end can start calling the RP at http://localhost:9000.
+
+services:
+
+  # ── Mock NDID API ─────────────────────────────────────────────────────────────
+  mock-ndid:
+    image: ndidplatform/your-data-examples:latest
+    command: mock
+    environment:
+      - IDP_CALLBACK_HOST=yourdata-idp
+      - IDP_CALLBACK_PORT=6000
+      - RP_CALLBACK_HOST=yourdata-rp
+      - RP_CALLBACK_PORT=6001
+      - AS1_CALLBACK_HOST=yourdata-as1
+      - AS1_CALLBACK_PORT=6002
+      - AS2_CALLBACK_HOST=yourdata-as2
+      - AS2_CALLBACK_PORT=6003
+    ports:
+      - '8100:8100'   # IDP NDID API
+      - '8200:8200'   # RP NDID API
+      - '8300:8300'   # AS1 NDID API
+      - '8400:8400'   # AS2 NDID API
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8200/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ── IDP ───────────────────────────────────────────────────────────────────────
+  yourdata-idp:
+    image: ndidplatform/your-data-examples:latest
+    command: idp
+    environment:
+      - SERVER_PORT=8000
+      - NDID_API_CALLBACK_IP=yourdata-idp
+      - NDID_API_CALLBACK_PORT=6000
+      - API_SERVER_ADDRESS=http://mock-ndid:8100
+    ports:
+      - '8000:8000'
+    depends_on:
+      mock-ndid:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8000/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ── RP ────────────────────────────────────────────────────────────────────────
+  yourdata-rp:
+    image: ndidplatform/your-data-examples:latest
+    command: rp
+    environment:
+      - SERVER_PORT=9000
+      - NDID_API_CALLBACK_IP=yourdata-rp
+      - NDID_API_CALLBACK_PORT=6001
+      - API_SERVER_ADDRESS=http://mock-ndid:8200
+    ports:
+      - '9000:9000'
+    depends_on:
+      mock-ndid:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:9000/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ── AS1 (Alpha Bank — deposit + credit card) ──────────────────────────────────
+  yourdata-as1:
+    image: ndidplatform/your-data-examples:latest
+    command: as
+    environment:
+      - SERVER_PORT=10000
+      - NDID_API_CALLBACK_IP=yourdata-as1
+      - NDID_API_CALLBACK_PORT=6002
+      - API_SERVER_ADDRESS=http://mock-ndid:8300
+    ports:
+      - '10000:10000'
+    depends_on:
+      mock-ndid:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:10000/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ── AS2 (Beta Bank — deposit only) ────────────────────────────────────────────
+  yourdata-as2:
+    image: ndidplatform/your-data-examples:latest
+    command: as2
+    environment:
+      - SERVER_PORT=11000
+      - NDID_API_CALLBACK_IP=yourdata-as2
+      - NDID_API_CALLBACK_PORT=6003
+      - API_SERVER_ADDRESS=http://mock-ndid:8400
+    ports:
+      - '11000:11000'
+    depends_on:
+      mock-ndid:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:11000/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ── Frontend (Your Data DC wizard) ────────────────────────────────────────────
+  frontend:
+    image: ndidplatform/your-data-examples:latest
+    command: frontend
+    ports:
+      - '5173:5173'
+    depends_on:
+      yourdata-rp:
+        condition: service_healthy
+
+  # ── Setup (one-time identity registration) ────────────────────────────────────
+  # Runs once after all services are healthy, registers the test identity on IDP,
+  # then exits. Front-end can start calling the RP immediately after this completes.
+  setup:
+    image: ndidplatform/your-data-examples:latest
+    depends_on:
+      yourdata-idp:
+        condition: service_healthy
+      yourdata-rp:
+        condition: service_healthy
+      yourdata-as1:
+        condition: service_healthy
+      yourdata-as2:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        echo 'Registering test identity...' &&
+        wget -qO-
+        --post-data='{"namespace":"citizen_id","identifier":"1234567890123","mode":3}'
+        --header='Content-Type: application/json'
+        http://yourdata-idp:8000/identity &&
+        echo 'Identity registered. All services ready.' &&
+        echo 'RP is available at http://localhost:9000'
+    restart: 'no'

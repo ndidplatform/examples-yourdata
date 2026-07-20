@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Keys
+keys/
+
+# Environment files
+*.env
+.env.*
+
+# Docs
+*.docx
+
+# OS
+.DS_Store

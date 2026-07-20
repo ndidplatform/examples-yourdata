@@ -1,0 +1,24 @@
+{
+  "name": "ndid-your-data-idp-example",
+  "version": "1.0.0",
+  "description": "NDID Your Data - Identity Provider (IDP) example",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node ./build/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1",
+    "morgan": "^1.11.0",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

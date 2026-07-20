@@ -1,0 +1,23 @@
+{
+  "name": "ndid-your-data-as-example2",
+  "version": "1.0.0",
+  "description": "NDID Your Data - Attribute Server (AS) example2: credit card data provider",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node ./build/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1",
+    "morgan": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
