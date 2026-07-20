@@ -157,6 +157,8 @@ registerServices().catch(console.error);
 const revokedTokens = new Set<string>();
 const usedOneTimeTokens = new Set<string>();
 const usedPreConsentTokens = new Set<string>();
+const pendingPreConsentTokenByRequestId = new Map<string, string>();
+const pendingOneTimeConsentTokenByRequestId = new Map<string, string>();
 
 const ownTokenStore = new Map<string, { token: string; asNodeId: string }>();
 
@@ -251,13 +253,14 @@ function validateToken(authorization: string): { error_code: number; error_messa
 }
 
 /**
- * Mark a one-time token as used after data has been successfully sent.
+ * Register a one-time token to be marked used once the platform confirms
+ * the data_decryption_pending status for this request.
  */
-function markTokenUsedIfOneTime(authorization: string): void {
+function markTokenUsedIfOneTime(requestId: string, authorization: string): void {
   if (authorization === 'no_token_needed') return;
   const payload = decodeTokenPayload(authorization);
   if (payload?.usage_type === 'one_time') {
-    usedOneTimeTokens.add(authorization);
+    pendingOneTimeConsentTokenByRequestId.set(requestId, authorization);
   }
 }
 
@@ -412,8 +415,6 @@ async function handleNdidDataRequest(
         ],
       });
 
-      consentIntentMap.set(token.token, intent);
-
       await API.sendNdidData({
         request_id,
         service_id,
@@ -424,6 +425,8 @@ async function handleNdidDataRequest(
           authorization: token.token,
         }),
       });
+
+      consentIntentMap.set(token.token, intent);
     }
   } catch (error) {
     console.error(`Error handling NDID data request for ${service_id}:`, error);
@@ -443,6 +446,20 @@ ndidCallbackEvent.on(
   'yourdata_status_update',
   (data: YourDataAsRequestStatusCallback) => {
     console.log(`Your Data request ${data.request_id} status: ${data.status}`);
+    if (data.status === 'data_decryption_pending') {
+      const preConsentAuthorization = pendingPreConsentTokenByRequestId.get(data.request_id);
+      if (preConsentAuthorization) {
+        consentIntentMap.delete(preConsentAuthorization);
+        usedPreConsentTokens.add(preConsentAuthorization);
+        pendingPreConsentTokenByRequestId.delete(data.request_id);
+      }
+
+      const oneTimeAuthorization = pendingOneTimeConsentTokenByRequestId.get(data.request_id);
+      if (oneTimeAuthorization) {
+        usedOneTimeTokens.add(oneTimeAuthorization);
+        pendingOneTimeConsentTokenByRequestId.delete(data.request_id);
+      }
+    }
   },
 );
 
@@ -605,8 +622,7 @@ async function handleYourDataRequest(
         request_id,
         data: JSON.stringify(consent_tokens),
       });
-      consentIntentMap.delete(data.authorization);
-      usedPreConsentTokens.add(data.authorization);
+      pendingPreConsentTokenByRequestId.set(request_id, data.authorization);
     } else {
       const tokenError = validateToken(data.authorization);
       if (tokenError) {
@@ -675,7 +691,7 @@ async function handleYourDataRequest(
         request_id,
         data: JSON.stringify(responseData),
       });
-      markTokenUsedIfOneTime(data.authorization);
+      markTokenUsedIfOneTime(request_id, data.authorization);
     }
   } catch (error) {
     console.error(`Error handling Your Data request for ${service_id}:`, error);
