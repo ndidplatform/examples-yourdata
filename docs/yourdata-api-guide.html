@@ -4008,7 +4008,9 @@
               validate_identifier: true,
               validate_service_id: true,
               validate_service_extension: true,
-              service_id_list: tc.svcList,
+              service_id_list: tc.svcList.map(function (s) {
+                return Object.assign({}, s, { service_extension: [] });
+              }),
               sub_identity_list: [
                 {
                   namespace: tc.acc.namespace,
@@ -4923,12 +4925,16 @@
           validate_identifier: true,
           validate_service_id: true,
           validate_service_extension: true,
-          // Must mirror Step 3's service_id_list exactly so the reconstructed
+          // Must mirror Step 3's service_id_list exactly (including the same
+          // service_extension: [] transform applied there) so the reconstructed
           // payload -- and therefore the cached mock JWT -- match the token
           // the AS actually issued at complete-consent.
-          service_id_list: isOneTimeStep4
+          service_id_list: (isOneTimeStep4
             ? [resolved.activeSvc]
-            : resolved.svcOptions,
+            : resolved.svcOptions
+          ).map(function (s) {
+            return Object.assign({}, s, { service_extension: [] });
+          }),
           sub_identity_list: [
             {
               namespace: firstAcc.namespace,
@@ -4990,6 +4996,7 @@
           request_params: JSON.stringify(reqParams),
           authorization: tokenLabel,
           request_timeout: 900,
+          service_extension: [],
         };
 
         var asCb = {
@@ -4998,6 +5005,7 @@
           request_id: "req-data-xxxx",
           service_id: svcId,
           service_version: "v1",
+          service_extension: [],
           requester_node_id: "rp1",
           namespace: "citizen_id",
           identifier: cfg.cid,
@@ -5832,7 +5840,7 @@
           "<tr><td><code>sub_identity_list</code></td><td>Omitted -- not scoped to a specific account yet</td><td><b>Required.</b> The real account this token grants access to -- 1 token = 1 account</td></tr>" +
           "<tr><td><code>service_id_list</code></td><td>Always exactly 1 entry: <code>900.complete_consent_001</code> with the embedded intent JSON as its service_extension</td><td>The actual dataset service_id(s) requested -- 1 entry for one_time, all selected services for continuous_*</td></tr>" +
           "<tr><td><code>validate_identifier</code> / <code>validate_service_id</code></td><td>true / true</td><td>true / true</td></tr>" +
-          "<tr><td><code>validate_service_extension</code></td><td>false (real intent is embedded, not matched literally)</td><td>true</td></tr>" +
+          "<tr><td><code>validate_service_extension</code></td><td>false (real intent is embedded, not matched literally)</td><td>true -- paired with an explicit service_extension: [] on the token (see note below)</td></tr>" +
           "<tr><td><code>usage_type</code></td><td>Always <code>one_time</code> -- the as_token itself is a short-lived exchange token, regardless of the consent_token's eventual usage_type</td><td>The RP-declared usage_type, reconstructed from the embedded intent</td></tr>" +
           "<tr><td><code>expiration_datetime</code></td><td>Short-lived (~15 min) -- required since usage_type is one_time</td><td>Per the usual rule (required except continuous_no_expire)</td></tr>" +
           "<tr><td><b>source_request_id_list</b></td><td><code>[\"req-pre-xxxx\"]</code> -- just the pre-consent request_id</td><td><code>[\"req-pre-xxxx\", \"req-cc-{dataset}-{as}\"]</code> -- <b>both</b> the pre-consent request_id <b>and</b> this complete-consent request_id, forming a full audit trail</td></tr>" +
@@ -5842,8 +5850,8 @@
             "<b>What <code>validate_identifier</code> / <code>validate_service_id</code> / <code>validate_service_extension</code> actually do:</b> these flags travel inside the signed token and are enforced <b>automatically by NDID's platform software on the AS's node</b>, before your application's callback is ever invoked (see Step 4's \"what the platform already validated\").<br><br>" +
               "&bull; <code>validate_identifier: true</code> &rarr; platform confirms the namespace/identifier (or sub_identity_list account) on the incoming request matches the token's.<br>" +
               "&bull; <code>validate_service_id: true</code> &rarr; platform confirms the requested service_id matches one the token was scoped to.<br>" +
-              "&bull; <code>validate_service_extension: true</code> &rarr; platform also confirms service_extension (if the request specifies one) matches what's on the token. None of the service_ids in this guide carry a service_extension anymore -- Basic/Detail and Lookback are now baked into the service_id itself -- so this check is a no-op here, but the flag still exists generically for any service_id that does use one.<br><br>" +
-              "Setting a flag <code>false</code> tells the platform it does <b>not</b> need to enforce that particular match -- used for as_token's <code>validate_service_extension</code> above because the real requested extension is embedded in the intent JSON, not meant to be literally compared. A mismatch on any true flag rejects the request before your callback URL is even called.",
+              "&bull; <code>validate_service_extension: true</code> &rarr; platform confirms the request's service_extension is a subset of the token's. as_token keeps this false (its service_extension carries the intent JSON, not meant to be literally compared). consent_token sets it true, paired with an explicit service_extension: [] on every service_id_list entry at token creation (Step 3). The Step 4 example shows the RP sending service_extension: [] explicitly, echoed back in the AS callback -- that's the convention shown here.<br><br>" +
+              "Setting a flag <code>false</code> tells the platform it does <b>not</b> need to enforce that particular match. A mismatch on any true flag rejects the request before your callback URL is even called.",
           );
 
         return makeStep(
