@@ -99,7 +99,7 @@ POST /v7/as/service/{service_id}
   "reference_id": "as-svc-reg-1750000000000",
   "callback_url": "http://as-cb:6002/as/service/callback",
   "min_ial": 2.3,
-  "min_aal": 2.2,
+  "min_aal": 2.1,
   "url": "https://as1.example.com/as/service_data",
   "supported_namespace_list": ["citizen_id"]
 }
@@ -297,9 +297,9 @@ All codes are type `as`. Registered in the YourData domain via `GetDomainErrorCo
 | `namespace` / `identifier` | `citizen_id` / citizen ID | Same |
 | `token_objective` | *(omitted — carried instead inside the embedded intent, see below)* | The RP-supplied objective string (§8.1), reconstructed from the as_token's embedded intent |
 | `sub_identity_list` | *(omitted — not scoped to a specific account yet)* | **Required.** The real account this token grants access to — 1 token = 1 account |
-| `service_id_list` | Always exactly 1 entry: `{service_id: "900.complete_consent_001", service_extension: [<embedded intent JSON>]}` | The actual dataset `service_id`(s) requested — 1 entry for `one_time`, all selected services for `continuous_*` |
+| `service_id_list` | Always exactly 1 entry: `{service_id: "900.complete_consent_001", service_extension: [<embedded intent JSON>]}` | The actual dataset `service_id`(s) requested, each with `service_extension: []` — 1 entry for `one_time`, all selected services for `continuous_*` |
 | `validate_identifier` / `validate_service_id` | `true` / `true` | `true` / `true` |
-| `validate_service_extension` | `false` (the real intent is embedded, not matched literally) | `true` |
+| `validate_service_extension` | `false` (the real intent is embedded, not matched literally) | `true` — paired with an explicit `service_extension: []` on the token (see note below) |
 | `usage_type` | Always `"one_time"` — the as_token itself is a short-lived exchange token, regardless of what usage_type the RP ultimately wants for the consent_token | The RP-declared usage_type (`one_time` / `continuous_with_expire` / `continuous_no_expire`), reconstructed from the embedded intent |
 | `expiration_datetime` | Short-lived (e.g. ~15 min) — required since usage_type is `one_time` | Per the usage_type rule above (required except `continuous_no_expire`) |
 | **`source_request_id_list`** | `["req-pre-xxxx"]` — just the pre-consent request_id | `["req-pre-xxxx", "req-cc-{dataset}-{as}"]` — **both** the original pre-consent request_id **and** this complete-consent request_id, forming a full audit trail from initial consent through to token issuance |
@@ -308,9 +308,9 @@ All codes are type `as`. Registered in the YourData domain via `GetDomainErrorCo
 > **What `validate_identifier` / `validate_service_id` / `validate_service_extension` actually do:** these flags travel inside the signed token and are enforced **automatically by NDID's platform software on the AS's node**, before your application's callback is ever invoked (see §10.2's "what the platform already validated").
 > - `validate_identifier: true` → platform confirms the `namespace`/`identifier` (or `sub_identity_list` account) on the incoming request matches the token's.
 > - `validate_service_id: true` → platform confirms the requested `service_id` matches one the token was scoped to.
-> - `validate_service_extension: true` → platform also confirms `service_extension` matches (this now only carries the `complete_consent_001` intent JSON, per §8.5 — not a Basic/Detail flag, which is baked into `service_id` itself since v1.0.1).
+> - `validate_service_extension: true` → platform confirms the request's `service_extension` array is a subset of the token's. `as_token` keeps this `false` (its `service_extension` carries the intent JSON, not meant to be literally compared). `consent_token` sets it `true`, paired with an explicit `service_extension: []` on every `service_id_list` entry at token creation (§9.3). The example in §10.1/§10.2 shows the RP sending `service_extension: []` explicitly on the matching Step 4 request, echoed back in §10.2's callback — that's the convention shown here.
 >
-> Setting a flag `false` tells the platform it does **not** need to enforce that particular match — used for `as_token`'s `validate_service_extension` above because the real requested extension is embedded in the intent JSON, not meant to be literally compared. A mismatch on any `true` flag rejects the request before your callback URL is even called.
+> Setting a flag `false` tells the platform it does **not** need to enforce that particular match. A mismatch on any `true` flag rejects the request before your callback URL is even called.
 
 ---
 
@@ -366,16 +366,18 @@ POST /v7/identity
 ### 7.2 RP: Get IDP List (for IDP picker UI)
 
 ```
-GET /v7/utility/idp/citizen_id/{identifier}?min_ial=2.3&min_aal=2.2&mode=3
+GET /v7/utility/idp/citizen_id/{identifier}?min_ial=2.3&min_aal=2.1&mode=2
 ```
 
 **Response:**
 ```json
 [
   { "node_id": "idp1", "node_name": "Alpha Bank IDP", "ial": 2.3, "mode_list": [2, 3], "max_ial": 2.3, "max_aal": 3 },
-  { "node_id": "idp2", "node_name": "Beta Bank IDP",  "ial": 2.3, "mode_list": [3],   "max_ial": 2.3, "max_aal": 3 }
+  { "node_id": "idp2", "node_name": "Beta Bank IDP",  "ial": 2.3, "mode_list": [2],    "max_ial": 2.3, "max_aal": 3 }
 ]
 ```
+
+> `mode` here is `2`, not `3` — the YourData use case only uses mode 2 throughout (see §8.1's note). `mode_list` shows which mode(s) each IdP supports for this identity; either IdP works for a mode-2 request.
 
 Pass the user's chosen `node_id` as `idp_id_list` in Step 2.
 
@@ -419,14 +421,13 @@ POST /v7/rp/requests/citizen_id/{identifier}
   "min_ial": 2.3,
   "min_aal": 2.1,
   "min_idp": 1,
-  "request_type": "AuthenOnly",
-  "request_timeout": 600
+  "request_timeout": 600,
+  "request_type": "AuthenOnly"
 }
 ```
 
-> **Fixed settings for this request:** `mode: 2`, `min_ial: 2.3`, `min_aal: 2.1`, `min_idp: 1`, `min_as: 0` (per data_request_list item), `request_type: "AuthenOnly"` — identity is confirmed via the IDP on-chain; the actual account/data exchange happens over the off-chain YourData API (§8.4 onward) once the IDP has responded, not as on-chain request data itself.
->
 > `namespace`/`identifier` are **URL path params** (`/v7/rp/requests/citizen_id/{identifier}`), not body fields. `bypass_identity_check` is required when `mode` is `2` or `3` — `false` means the platform verifies each IdP in `idp_id_list` actually has this identity onboarded at the required IAL before routing to it.  
+> **This use case only uses `mode: 2`** — carried through unchanged from identity registration (§7.1) through every step of the flow (pre-consent, complete-consent, data request, revoke). It's echoed in the IDP callback (§8.2), the AS callback (§8.4), and every status callback — always the same value the RP originally sent here.  
 > **`request_params`** is a JSON-stringified object. To NDID's platform it's an opaque string (`request_params: { type: 'string' }` on this on-chain endpoint's route schema — no `minLength`, so an empty string technically passes; the separate off-chain `/v7/yourdata/rp/requests` endpoint used in §9.1/§10.1 *does* enforce `minLength: 1`) — the platform never parses it, only the AS does. Every dataset carries `usage_type` + `data_service_list`, plus a dataset-specific set of fields defined by NDID's [YourData_Schema_Common](https://app.swaggerhub.com/apis/NDID/YourData_Schema_Common/1.0.1) reference schema:
 > - **Deposit**: `language` (`TH`/`EN`, mandatory) + `accountSubType` (mandatory — the spec ships only an example value, `SAVINGS`, with no formal enum; in practice AS's also accept `CURRENT`, `TERM`, and `ALL` for every subtype) + `auxiliaryReferenceId` (optional, 1–50 chars, echoed back by the AS if provided)
 > - **Card Payment / e-Money** (shown above for Card Payment): `language` (mandatory) + `auxiliaryReferenceId` (optional) — no `accountSubType`
@@ -455,7 +456,6 @@ Callback → `POST /idp/request`:
   "requester_node_id": "rp1",
   "min_ial": 2.3,
   "min_aal": 2.1,
-  "request_type": "AuthenOnly",
   "data_request_list": [
     { "service_id": "900.pre_consent_deposit_001", "as_id_list": ["as1", "as2"], "min_as": 0 }
   ],
@@ -484,7 +484,7 @@ POST /v7/idp/response
   "callback_url": "http://idp-cb:6000/idp/response_result",
   "request_id": "req-pre-xxxx",
   "ial": 2.3,
-  "aal": 2.2,
+  "aal": 2.1,
   "status": "accept",
   "accessor_id": "acc-xxxx",
   "signature": "<base64-rsa-sig>"
@@ -590,7 +590,6 @@ Callback → `POST /rp/request/{reference_id}`:
   "min_ial": 2.3,
   "min_aal": 2.1,
   "min_idp": 1,
-  "request_type": "AuthenOnly",
   "idp_id_list": ["idp1"],
   "response_list": [
     { "idp_id": "idp1", "valid_signature": true, "valid_ial": true }
@@ -743,7 +742,7 @@ Token create body (token 1/2, `one_time`):
   "validate_service_id": true,
   "validate_service_extension": true,
   "service_id_list": [
-    { "service_id": "900.deposit_transactions_basic_001", "service_version": "v1" }
+    { "service_id": "900.deposit_transactions_basic_001", "service_version": "v1", "service_extension": [] }
   ],
   "sub_identity_list": [
     {
@@ -770,9 +769,12 @@ Token create body (token 1, `continuous_with_expire`, all services):
   "source_request_id_list": ["req-pre-xxxx", "req-cc-deposit-as1"],
   "usage_type": "continuous_with_expire",
   "expiration_datetime": 1757808000,
+  "validate_identifier": true,
+  "validate_service_id": true,
+  "validate_service_extension": true,
   "service_id_list": [
-    { "service_id": "900.deposit_transactions_basic_001", "service_version": "v1" },
-    { "service_id": "900.deposit_balance_001", "service_version": "v1" }
+    { "service_id": "900.deposit_transactions_basic_001", "service_version": "v1", "service_extension": [] },
+    { "service_id": "900.deposit_balance_001", "service_version": "v1", "service_extension": [] }
   ],
   "sub_identity_list": [
     { "namespace": "account_id", "identifier": "123-456-1234", "visible_identifier": "***-***-1234", "identifier_extension": "{\"accountSubType\":\"CURRENT\",\"institutionName\":\"Alpha Bank\",\"accountStatus\":\"ACTIVE\",\"accountName\":\"John Doe\"}" }
@@ -857,12 +859,13 @@ Example — Deposit Transactions Basic:
   "identifier": "1234567890123",
   "request_params": "{\"fromBookingDateTime\":\"2026-01-01T00:00:00+07:00\",\"toBookingDateTime\":\"2026-03-31T23:59:59+07:00\",\"language\":\"EN\"}",
   "authorization": "<consent_token>",
-  "request_timeout": 900
+  "request_timeout": 900,
+  "service_extension": []
 }
 ```
 
 > `authorization` = consent_token resolved by RP from `(accountId, service_id)`. Never sent by the client.  
-> Which tier (Basic/Detail) and lookback period (6mo/12mo) applies is fully determined by which of the 8 split `service_id`s (§4) the RP calls — there's no need to send `service_extension` for that purpose anymore. (The field itself is still a valid optional part of the request schema and will appear in the AS callback if the RP does send it — it's just not needed here since v1.0.1, unlike its still-real use in `complete_consent_001`'s intent-carrying `service_extension[0]`, §8.5.)
+> Which tier (Basic/Detail) and lookback period (6mo/12mo) applies is fully determined by which of the 8 split `service_id`s (§4) the RP calls — `service_extension` no longer carries that. This example shows the RP sending `service_extension: []` explicitly, matching the consent_token's (§9.3) own explicit `service_extension: []` on its `service_id_list`.
 
 ### 10.2 AS: Data Request Callback
 
@@ -874,6 +877,7 @@ Callback → `POST /yourdata/as/request/{service_id}`:
   "request_id": "req-data-xxxx",
   "service_id": "900.deposit_transactions_basic_001",
   "service_version": "v1",
+  "service_extension": [],
   "requester_node_id": "rp1",
   "namespace": "citizen_id",
   "identifier": "1234567890123",
@@ -905,23 +909,17 @@ These checks are **not required or enforced by NDID** — the platform-level val
 ```
 1. revokedTokens.has(authorization)          → error 40720 (Consent Token Revoked)
 2. usage_type=one_time && already used       → error 40730 (One-Time Token Already Used)
-3. { level, lookbackMonths } = parse `_(basic|detail)_(001|002)$` suffix from the requested service_id
-                   → `_001` = 6 months lookback, `_002` = 12 months lookback (see §3/§4)
-   now = current date/time (when this request is processed)
-   earliestFrom = the 1st of the month, `lookbackMonths` months before now's month
-                  (i.e. the request's own month is "month 0"; count back
-                  6 or 12 months to get the earliest allowed month, then floor
-                  to its 1st day at 00:00:00 — e.g. a request on 3 Sep 2026
-                  with a 6-month lookback permits fromDate as early as 1 Mar 2026)
-   toDate > now  OR  fromDate < earliestFrom  → error 40710 (Date Range Exceeds Permission)
+3. earliestAllowedFromDate = service_id ends in "_002" ? today minus 12 CALENDAR months
+                           : today minus 6 CALENDAR months   // "_001" = 6mo
+   fromDate < earliestAllowedFromDate           → error 40710 (Date Range Exceeds Permission)
 4. tokenAccountMap.get(authorization)        → get account details
 5. Build response matching dataset schema
 6. responseSize > platform's size limit       → error 40780 (AS Data Size Larger Than Limit)
 ```
 
-> The permitted date range comes from the lookback period encoded in the requested service_id itself (`_001` = 6 months, `_002` = 12 months — see §3/§4), matched against whichever concrete service_id is present in the consent_token's `service_id_list`. There is no separate default to fall back on — a variant that isn't registered/granted simply isn't a valid service_id to request.
+> The lookback period is **calendar-month offsets from today, not fixed day counts** (180/365 days) — months vary in length (28–31 days), so a fixed day count drifts from the actual month boundary. Subtract calendar months from today's date instead: if today is **2026-07-27**, a 6-month lookback allows data back to **2026-01-27**, and 12-month allows data back to **2025-07-27** — not "180/365 days ago."
 >
-> The window is anchored to *now*, not to a fixed span: a DC (the requesting party) may supply any `fromDate`/`toDate` in its `request_params`, but `toDate` may never be later than the current date/time and `fromDate` may never be earlier than the 1st day of the month that is `lookbackMonths` months before the current month. If `request_params` omits both dates, the AS defaults to exactly that widest permitted window — `earliestFrom` (1st of the earliest allowed month, 00:00:00) through `now`.
+> There's no ambiguity or AS-side defaulting here anymore: since the v1.0.1 schemas, the lookback period is baked directly into which `service_id` (§4) the RP calls at Step 4 — `_001` for 6 months, `_002` for 12 months. The RP committed to one specific `service_id` back at pre-consent (§8.1) and complete-consent (§9.3), and Step 4 must call that exact same one.
 
 ### 10.4 AS: Send Data
 
@@ -929,7 +927,7 @@ These checks are **not required or enforced by NDID** — the platform-level val
 POST /v7/yourdata/as/data
 ```
 
-Example response body for `deposit_transactions_basic_002` (Basic, 12 months lookback):
+Example response body for `900.deposit_transactions_basic_001`:
 ```json
 {
   "request_id": "req-data-xxxx",
@@ -1481,13 +1479,10 @@ POST /v7/rp/requests/citizen_id/{identifier}
   "min_ial": 2.3,
   "min_aal": 2.1,
   "min_idp": 1,
-  "request_type": "AuthenOnly",
   "request_timeout": 86400
 }
 ```
 
-> **Fixed settings for this request:** `mode: 2`, `min_ial: 2.3`, `min_aal: 2.1`, `min_idp: 1`, `min_as: 0`, `request_type: "AuthenOnly"` — same as pre-consent (§8.1); identity is confirmed via the IDP on-chain, and the AS acknowledges revoked tokens over the off-chain YourData API (§11.3/§11.4).
->
 > `namespace`/`identifier` are URL path params, not body fields. `bypass_identity_check` is required when `mode` is `2` or `3`.  
 > `request_params` = JSON-stringified array of `token_id` strings (UUIDs) to revoke — resolved by the RP from its own stored `(accountId, service_id) → token_id` mapping, never from the client and never as the raw JWT.  
 > `as_id_list` = unique AS nodes extracted from the `as_node_id` the RP stored alongside each `token_id` when it originally decoded the token.
@@ -1562,7 +1557,6 @@ Callback → `POST /rp/request/{reference_id}`:
   "min_ial": 2.3,
   "min_aal": 2.1,
   "min_idp": 1,
-  "request_type": "AuthenOnly",
   "idp_id_list": ["idp1"],
   "response_list": [
     { "idp_id": "idp1", "valid_signature": true, "valid_ial": true }
