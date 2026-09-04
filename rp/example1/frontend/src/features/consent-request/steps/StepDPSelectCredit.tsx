@@ -12,14 +12,14 @@ export function StepDPSelectCredit() {
   const error = useConsentRequestStore(s => s.error)
 
   const creditDPs = availableDPs.filter(dp =>
-    dp.datasets.some(d => d.datasetId === '900.cardpayment_transactions_001')
+    dp.datasets.some(d => d.datasetId.startsWith('900.cardpayment_transactions_'))
   )
   const creditDataset = availableDPs
     .flatMap(dp => dp.datasets)
-    .find(d => d.datasetId === '900.cardpayment_transactions_001')
+    .find(d => d.datasetId.startsWith('900.cardpayment_transactions_'))
 
   const selectedIds = selectedDPs
-    .filter(d => d.selectedDatasets.some(ds => ds.datasetId === '900.cardpayment_transactions_001'))
+    .filter(d => d.selectedDatasets.some(ds => ds.datasetId.startsWith('900.cardpayment_transactions_')))
     .map(d => d.dpId)
   const selectedCount = selectedDPs.length
   const progressPct = Math.min((selectedCount / MAX_DP_COUNT) * 100, 100)
@@ -82,7 +82,7 @@ export function StepDPSelectCredit() {
             key={dp.dpId}
             dp={dp}
             isSelected={selectedIds.includes(dp.dpId)}
-            onToggle={(dpId) => toggleDP(dpId, '900.cardpayment_transactions_001')}
+            onToggle={(dpId) => toggleDP(dpId, '900.cardpayment_transactions_basic_002')}
           />
         ))}
 

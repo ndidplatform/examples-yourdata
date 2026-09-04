@@ -83,6 +83,6 @@ const CREDIT_FIXTURES: CreditData[] = [
 
 export class DataRequestServiceMock implements DataRequestService {
   async fetchData(params: FetchDataParams): Promise<ServiceData[]> {
-    return params.datasetId === '900.cardpayment_transactions_001' ? CREDIT_FIXTURES : DEPOSIT_FIXTURES
+    return params.datasetId.startsWith('900.cardpayment_transactions_') ? CREDIT_FIXTURES : DEPOSIT_FIXTURES
   }
 }

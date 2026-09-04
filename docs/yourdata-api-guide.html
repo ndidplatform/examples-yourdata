@@ -357,6 +357,75 @@
         display: flex;
         flex-direction: column;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        transition: max-width 0.15s ease;
+      }
+      #json-modal.wide {
+        max-width: 1080px;
+      }
+      .jwt-modal-grid {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .jwt-modal-col {
+        flex: 1;
+        min-width: 0;
+      }
+      .jwt-modal-col-hd {
+        font-size: 0.66rem;
+        font-weight: 700;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 7px;
+      }
+      .jwt-str-box {
+        word-break: break-all;
+        font-size: 0.68rem;
+        line-height: 1.5;
+        background: #131c2e;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 12px;
+      }
+      .jwt-seg-header {
+        color: #f472b6;
+      }
+      .jwt-seg-payload {
+        color: #86efac;
+      }
+      .jwt-seg-sig {
+        color: #7dd3fc;
+      }
+      .jwt-seg-dot {
+        color: #64748b;
+      }
+      .jwt-userdata-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.68rem;
+      }
+      .jwt-userdata-tbl td {
+        padding: 4px 6px;
+        border-bottom: 1px solid #1e293b;
+        vertical-align: top;
+      }
+      .jwt-userdata-tbl td:first-child {
+        color: #94a3b8;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      .jwt-note {
+        font-size: 0.65rem;
+        color: #64748b;
+        margin-top: 10px;
+        line-height: 1.5;
+      }
+      @media (max-width: 720px) {
+        .jwt-modal-grid {
+          flex-direction: column;
+        }
       }
       #json-modal-hd {
         display: flex;
@@ -472,11 +541,12 @@
       }
       .swim {
         border-collapse: collapse;
+        table-layout: fixed;
         width: 100%;
-        min-width: 520px;
       }
       /* header row */
       .swim thead th {
+        position: relative;
         padding: 7px 14px;
         font-size: 0.72rem;
         font-weight: 700;
@@ -485,6 +555,24 @@
         border: 1px solid var(--border);
         text-align: center;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* draggable lane-resize handle, sits on the right edge of a lane header */
+      .lane-resize-handle {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        bottom: 0;
+        width: 6px;
+        cursor: col-resize;
+        z-index: 5;
+        background: transparent;
+      }
+      .lane-resize-handle:hover,
+      .lane-resize-handle.dragging {
+        background: var(--accent);
+        opacity: 0.6;
       }
       .swim thead th.th-step {
         background: #f8fafc;
@@ -806,6 +894,19 @@
         align-items: center;
         background: #fafafa;
       }
+      .api-ep-name-checkbox {
+        gap: 6px;
+        cursor: pointer;
+      }
+      .api-ep-name-checkbox:hover {
+        background: #f5f3ff;
+      }
+      .api-ep-name-checkbox input[type="checkbox"] {
+        width: 12px;
+        height: 12px;
+        accent-color: var(--rp);
+        flex-shrink: 0;
+      }
       .api-perm-col {
         display: flex;
         flex-direction: column;
@@ -966,10 +1067,12 @@
         display: block;
       }
       .msw table {
-        width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
+        width: 100%;
       }
       .msw th {
+        position: relative;
         padding: 6px 10px;
         font-size: 0.68rem;
         font-weight: 700;
@@ -978,6 +1081,8 @@
         border: 1px solid var(--border);
         text-align: center;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .msw th.th-step {
         background: #f8fafc;
@@ -1038,7 +1143,7 @@
     <div id="json-modal-backdrop" onclick="hideJsonModal()">
       <div id="json-modal" onclick="event.stopPropagation()">
         <div id="json-modal-hd">
-          <span>Parsed JSON</span>
+          <span id="json-modal-title">Parsed JSON</span>
           <button id="json-modal-close" onclick="hideJsonModal()">
             &#10005;
           </button>
@@ -1050,7 +1155,7 @@
       <div>
         <h1>YourData API — Interactive Flow Guide</h1>
         <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 2px">
-          NDID Platform · Centralized Data Exchange Mechanism · v1.1
+          NDID Platform · Centralized Data Exchange Mechanism · v1.4
         </div>
       </div>
       <div class="badge">DC / RP Developer Guide</div>
@@ -1119,7 +1224,7 @@
                 Recurring — with expiry (≤ 1 yr)
               </option>
               <option value="continuous_no_expire">
-                Recurring — no expiry
+                Recurring — no expiry (Not used in YourData)
               </option>
             </select>
           </div>
@@ -1299,9 +1404,324 @@
       var _jsonTips = {};
       var _jsonTipSeq = 0;
 
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // MOCK JWT CREATION -- pure JS, no external libraries, works in browser + jsdom.
+      // Produces real, structurally-valid, decodable HS256 JWTs (header.payload.sig)
+      // signed with a fixed demo secret. Signatures are genuinely computed (not
+      // random placeholders) but are NOT tied to any real NDID node signing key --
+      // this is for demo/decode purposes only, never to be verified against a real
+      // node's public key.
+      // ═══════════════════════════════════════════════════════════════════════════════
+
+      function _rrot(v, n) {
+        return (v >>> n) | (v << (32 - n));
+      }
+      function _sha256(bytes) {
+        var h = [
+          0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f,
+          0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+        ];
+        var k = [
+          0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b,
+          0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01,
+          0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7,
+          0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+          0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152,
+          0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+          0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+          0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+          0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+          0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08,
+          0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f,
+          0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+          0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+        ];
+        var len = bytes.length;
+        var bitLen = len * 8;
+        var totalLen = len + 1;
+        while (totalLen % 64 !== 56) totalLen++;
+        totalLen += 8;
+        var msg = new Uint8Array(totalLen);
+        msg.set(bytes);
+        msg[len] = 0x80;
+        var hi = Math.floor(bitLen / 0x100000000);
+        var lo = bitLen >>> 0;
+        msg[totalLen - 8] = (hi >>> 24) & 0xff;
+        msg[totalLen - 7] = (hi >>> 16) & 0xff;
+        msg[totalLen - 6] = (hi >>> 8) & 0xff;
+        msg[totalLen - 5] = hi & 0xff;
+        msg[totalLen - 4] = (lo >>> 24) & 0xff;
+        msg[totalLen - 3] = (lo >>> 16) & 0xff;
+        msg[totalLen - 2] = (lo >>> 8) & 0xff;
+        msg[totalLen - 1] = lo & 0xff;
+
+        var w = new Uint32Array(64);
+        for (var chunk = 0; chunk < totalLen; chunk += 64) {
+          for (var i = 0; i < 16; i++) {
+            w[i] =
+              ((msg[chunk + i * 4] << 24) |
+                (msg[chunk + i * 4 + 1] << 16) |
+                (msg[chunk + i * 4 + 2] << 8) |
+                msg[chunk + i * 4 + 3]) >>>
+              0;
+          }
+          for (i = 16; i < 64; i++) {
+            var s0 = _rrot(w[i - 15], 7) ^ _rrot(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+            var s1 = _rrot(w[i - 2], 17) ^ _rrot(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+          }
+          var a = h[0],
+            b = h[1],
+            c = h[2],
+            d = h[3],
+            e = h[4],
+            f = h[5],
+            g = h[6],
+            hh = h[7];
+          for (i = 0; i < 64; i++) {
+            var S1 = _rrot(e, 6) ^ _rrot(e, 11) ^ _rrot(e, 25);
+            var ch = (e & f) ^ (~e & g);
+            var temp1 = (hh + S1 + ch + k[i] + w[i]) >>> 0;
+            var S0 = _rrot(a, 2) ^ _rrot(a, 13) ^ _rrot(a, 22);
+            var maj = (a & b) ^ (a & c) ^ (b & c);
+            var temp2 = (S0 + maj) >>> 0;
+            hh = g;
+            g = f;
+            f = e;
+            e = (d + temp1) >>> 0;
+            d = c;
+            c = b;
+            b = a;
+            a = (temp1 + temp2) >>> 0;
+          }
+          h[0] = (h[0] + a) >>> 0;
+          h[1] = (h[1] + b) >>> 0;
+          h[2] = (h[2] + c) >>> 0;
+          h[3] = (h[3] + d) >>> 0;
+          h[4] = (h[4] + e) >>> 0;
+          h[5] = (h[5] + f) >>> 0;
+          h[6] = (h[6] + g) >>> 0;
+          h[7] = (h[7] + hh) >>> 0;
+        }
+        var out = new Uint8Array(32);
+        for (i = 0; i < 8; i++) {
+          out[i * 4] = (h[i] >>> 24) & 0xff;
+          out[i * 4 + 1] = (h[i] >>> 16) & 0xff;
+          out[i * 4 + 2] = (h[i] >>> 8) & 0xff;
+          out[i * 4 + 3] = h[i] & 0xff;
+        }
+        return out;
+      }
+      function _hmacSha256(keyBytes, msgBytes) {
+        var blockSize = 64;
+        if (keyBytes.length > blockSize) keyBytes = _sha256(keyBytes);
+        var paddedKey = new Uint8Array(blockSize);
+        paddedKey.set(keyBytes);
+        var oKeyPad = new Uint8Array(blockSize),
+          iKeyPad = new Uint8Array(blockSize);
+        for (var i = 0; i < blockSize; i++) {
+          oKeyPad[i] = paddedKey[i] ^ 0x5c;
+          iKeyPad[i] = paddedKey[i] ^ 0x36;
+        }
+        var innerInput = new Uint8Array(iKeyPad.length + msgBytes.length);
+        innerInput.set(iKeyPad);
+        innerInput.set(msgBytes, iKeyPad.length);
+        var innerHash = _sha256(innerInput);
+        var outerInput = new Uint8Array(oKeyPad.length + innerHash.length);
+        outerInput.set(oKeyPad);
+        outerInput.set(innerHash, oKeyPad.length);
+        return _sha256(outerInput);
+      }
+      function _utf8Bytes(str) {
+        var utf8 = unescape(encodeURIComponent(str));
+        var bytes = new Uint8Array(utf8.length);
+        for (var i = 0; i < utf8.length; i++) bytes[i] = utf8.charCodeAt(i);
+        return bytes;
+      }
+      function _b64urlFromBytes(bytes) {
+        var bin = "";
+        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      }
+      function _b64urlFromString(str) {
+        return _b64urlFromBytes(_utf8Bytes(str));
+      }
+      function _b64urlDecodeToString(b64url) {
+        var b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        var bin = atob(b64);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        var pct = "";
+        for (i = 0; i < bytes.length; i++) {
+          pct += "%" + bytes[i].toString(16).padStart(2, "0");
+        }
+        return decodeURIComponent(pct);
+      }
+
+      var MOCK_JWT_SECRET = _utf8Bytes(
+        "yourdata-guide-demo-secret-DO-NOT-USE-IN-PRODUCTION",
+      );
+
+      // cacheKey (header+payload content) -> registry entry. Ensures the exact same
+      // payload always produces the exact same JWT string across repeated renders
+      // (e.g. the as_token shown when AS creates it must match the as_token shown
+      // later when RP spends it), without needing manual cache invalidation --
+      // if any user selection changes the payload, the cache key changes too.
+      var _mockJwtCache = {};
+      // jwt string -> registry entry, so any occurrence of this exact JWT string
+      // anywhere in the rendered JSON tree can be looked up and made clickable.
+      var _jwtByToken = {};
+      var _jwtRegSeq = 0;
+
+      // Deterministic UUID-v4-shaped string derived from a seed string (not
+      // real randomness) -- same seed always produces the same token_id, which
+      // is what lets the same logical token look identical everywhere it's
+      // reconstructed (creation site vs. spend site).
+      function mockUuidFromSeed(seed) {
+        var hash = _sha256(_utf8Bytes(seed));
+        var hex = Array.from(hash)
+          .map(function (b) {
+            return b.toString(16).padStart(2, "0");
+          })
+          .join("")
+          .slice(0, 32)
+          .split("");
+        hex[12] = "4"; // version 4
+        hex[16] = ["8", "9", "a", "b"][hash[8] % 4]; // variant
+        var s = hex.join("");
+        return (
+          s.slice(0, 8) +
+          "-" +
+          s.slice(8, 12) +
+          "-" +
+          s.slice(12, 16) +
+          "-" +
+          s.slice(16, 20) +
+          "-" +
+          s.slice(20, 32)
+        );
+      }
+
+      // Mirrors what core/yourdata/index.js's real createSignedToken() does server-
+      // side: prepend a server-generated token_id, append as_node_signing_key_version,
+      // and fill in issue_datetime if not already present. idSeed determines the
+      // (deterministic, mock) token_id -- pass the same seed at every site that
+      // reconstructs this same logical token so token_id matches too.
+      function withServerGeneratedTokenFields(payload, idSeed) {
+        var out = { token_id: "mock-" + mockUuidFromSeed(idSeed) };
+        Object.keys(payload).forEach(function (k) {
+          out[k] = payload[k];
+        });
+        out.as_node_signing_key_version = 1;
+        if (out.issue_datetime == null) out.issue_datetime = 1750000000;
+        return out;
+      }
+
+      // Creates (or reuses, if the same payload was already created) a mock JWT and
+      // registers it so it renders as a clickable, decodable token wherever it
+      // appears in a cjb()-rendered JSON block. `meta` is the human-readable
+      // "user selected data" context shown alongside the token in its decode modal.
+      function mockJwt(payload, meta, headerExtra) {
+        var header = Object.assign({ alg: "HS256", typ: "JWT" }, headerExtra || {});
+        var cacheKey = JSON.stringify(header) + "::" + JSON.stringify(payload);
+        var cached = _mockJwtCache[cacheKey];
+        if (cached) return cached.jwt;
+
+        var encHeader = _b64urlFromString(JSON.stringify(header));
+        var encPayload = _b64urlFromString(JSON.stringify(payload));
+        var signingInput = encHeader + "." + encPayload;
+        var sigBytes = _hmacSha256(MOCK_JWT_SECRET, _utf8Bytes(signingInput));
+        var jwt = signingInput + "." + _b64urlFromBytes(sigBytes);
+
+        var entry = {
+          id: "jwtreg" + _jwtRegSeq++,
+          jwt: jwt,
+          header: header,
+          payload: payload,
+          meta: meta || {},
+        };
+        _mockJwtCache[cacheKey] = entry;
+        _jwtByToken[jwt] = entry;
+        return jwt;
+      }
+
+      // A string is JWT-shaped: three base64url segments, first decodes to JSON
+      // containing "alg" (cheap structural check, not full validation).
+      function looksLikeJwt(s) {
+        return typeof s === "string" && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
+      }
+
+      function showJwtModal(evt, jwt) {
+        if (evt) evt.stopPropagation();
+        var entry = _jwtByToken[jwt];
+        if (!entry) return;
+        var body = document.getElementById("json-modal-body");
+        var backdrop = document.getElementById("json-modal-backdrop");
+        var modal = document.getElementById("json-modal");
+        var title = document.getElementById("json-modal-title");
+        if (!body || !backdrop) return;
+        if (modal) modal.classList.add("wide");
+        if (title) title.textContent = "Decoded JWT";
+
+        var parts = jwt.split(".");
+        var coloredJwt =
+          '<span class="jwt-seg-header">' +
+          esc(parts[0]) +
+          '</span><span class="jwt-seg-dot">.</span>' +
+          '<span class="jwt-seg-payload">' +
+          esc(parts[1]) +
+          '</span><span class="jwt-seg-dot">.</span>' +
+          '<span class="jwt-seg-sig">' +
+          esc(parts[2]) +
+          "</span>";
+
+        var metaKeys = Object.keys(entry.meta);
+        var metaRows = metaKeys.length
+          ? '<table class="jwt-userdata-tbl">' +
+            metaKeys
+              .map(function (k) {
+                return (
+                  "<tr><td>" +
+                  esc(k) +
+                  "</td><td>" +
+                  esc(String(entry.meta[k])) +
+                  "</td></tr>"
+                );
+              })
+              .join("") +
+            "</table>"
+          : '<div class="jwt-note">(no additional context recorded)</div>';
+
+        body.innerHTML =
+          '<div class="jwt-modal-grid">' +
+          '<div class="jwt-modal-col">' +
+          '<div class="jwt-modal-col-hd">JWT (click segments to compare with decoded view)</div>' +
+          '<div class="jwt-str-box">' +
+          coloredJwt +
+          "</div>" +
+          '<div class="jwt-modal-col-hd">User Selected Data</div>' +
+          metaRows +
+          "</div>" +
+          '<div class="jwt-modal-col">' +
+          '<div class="jwt-modal-col-hd">Decoded Header</div>' +
+          '<div class="jb" style="margin-bottom:12px">' +
+          renderJsonVal(entry.header, 0, false) +
+          "</div>" +
+          '<div class="jwt-modal-col-hd">Decoded Payload</div>' +
+          '<div class="jb">' +
+          renderJsonVal(entry.payload, 0, false) +
+          "</div>" +
+          '<div class="jwt-note">Signature is a genuine HMAC-SHA256 computed client-side with a fixed demo secret -- not tied to any real NDID node signing key. For decode/reference purposes only.</div>' +
+          "</div>" +
+          "</div>";
+        backdrop.classList.add("open");
+      }
+
       // Recursively render a JS value as syntax-highlighted, indented JSON HTML.
       // interactive=true attaches a click-to-expand modal to string values that are
-      // themselves JSON (e.g. request_params, data, identifier_extension).
+      // themselves JSON (e.g. request_params, data, identifier_extension), or a
+      // click-to-decode modal to string values that are mock JWTs we created.
       function renderJsonVal(val, indent, interactive) {
         var pad = "  ".repeat(indent);
         var padIn = "  ".repeat(indent + 1);
@@ -1312,11 +1732,21 @@
           return '<span style="color:#fda4af">' + val + "</span>";
         if (typeof val === "string") {
           var shown = jsonStrEscaped(val);
+          if (interactive && looksLikeJwt(val) && _jwtByToken[val]) {
+            var jwtEsc = val.replace(/'/g, "\\'");
+            return (
+              '<span class="jv-jsonstr" style="color:#7dd3fc" onclick="showJwtModal(event,\'' +
+              jwtEsc +
+              '\')" title="Click to decode JWT">"' +
+              shown +
+              '"</span>'
+            );
+          }
           if (interactive) {
             var parsed = tryParseJsonString(val);
             if (parsed !== null) {
               var id = "jtip" + _jsonTipSeq++;
-              _jsonTips[id] = renderJsonVal(parsed, 0, false);
+              _jsonTips[id] = renderJsonVal(parsed, 0, true);
               return (
                 '<span class="jv-jsonstr" style="color:#86efac" onclick="showJsonModal(event,\'' +
                 id +
@@ -1360,7 +1790,11 @@
         if (evt) evt.stopPropagation();
         var body = document.getElementById("json-modal-body");
         var backdrop = document.getElementById("json-modal-backdrop");
+        var modal = document.getElementById("json-modal");
+        var title = document.getElementById("json-modal-title");
         if (!body || !backdrop || !(id in _jsonTips)) return;
+        if (modal) modal.classList.remove("wide");
+        if (title) title.textContent = "Parsed JSON";
         body.innerHTML = _jsonTips[id];
         backdrop.classList.add("open");
       }
@@ -1472,11 +1906,16 @@
       // Mini swimlane (2-column: RP | AS) for use inside req-blocks
       function miniSwim(asLabel, rows) {
         var h =
-          '<div class="msw"><table><thead><tr>' +
+          '<div class="msw"><table>' +
+          laneColgroup(["rp", "as"]) +
+          "<thead><tr>" +
           '<th class="th-step">#</th>' +
-          '<th class="th-rp">RP / DC</th>' +
+          '<th class="th-rp">RP / DC' +
+          laneHandle("rp") +
+          "</th>" +
           '<th class="th-as">' +
           esc(asLabel) +
+          laneHandle("as") +
           "</th>" +
           "</tr></thead><tbody>";
         rows.forEach(function (row) {
@@ -1590,12 +2029,94 @@
         );
       }
 
+      // Lane (column) widths in px, shared by every swim/msw table on the page so
+      // dragging one instance of the "RP" lane keeps every table's RP lane in sync,
+      // and survives applyAndRender() re-rendering the flow HTML from scratch.
+      // A lane only gets an entry here once the user actually drags it -- until
+      // then it defaults to an equal share of the full table width (100% / N),
+      // so every swim/msw table starts out with equal-width lanes spanning edge
+      // to edge, regardless of how many party columns that particular table has.
+      var LANE_W = {};
+      var STEP_W = 32;
+
+      function laneColgroup(keys) {
+        var h = "<colgroup><col style=\"width:" + STEP_W + 'px">';
+        keys.forEach(function (k) {
+          var w =
+            LANE_W[k] != null
+              ? LANE_W[k] + "px"
+              : "calc((100% - " + STEP_W + "px) / " + keys.length + ")";
+          h += '<col data-lane="' + k + '" style="width:' + w + '">';
+        });
+        return h + "</colgroup>";
+      }
+
+      function laneHandle(key) {
+        return '<span class="lane-resize-handle" data-lane-handle="' + key + '"></span>';
+      }
+
+      // Push the current LANE_W values onto every already-rendered <col>, without
+      // rebuilding any HTML -- keeps dragging smooth and preserves open/closed
+      // accordion state elsewhere on the page.
+      function applyLaneWidths() {
+        document.querySelectorAll("col[data-lane]").forEach(function (col) {
+          var w = LANE_W[col.getAttribute("data-lane")];
+          if (w != null) col.style.width = w + "px";
+        });
+      }
+
+      (function initLaneResize() {
+        var dragging = null; // { lane, startX, startWidth }
+        document.addEventListener("mousedown", function (e) {
+          var handle = e.target.closest && e.target.closest(".lane-resize-handle");
+          if (!handle) return;
+          e.preventDefault();
+          var lane = handle.getAttribute("data-lane-handle");
+          var th = handle.closest("th");
+          dragging = {
+            lane: lane,
+            startX: e.clientX,
+            startWidth: th ? th.getBoundingClientRect().width : LANE_W[lane] || 170,
+          };
+          handle.classList.add("dragging");
+          document.body.style.cursor = "col-resize";
+          document.body.style.userSelect = "none";
+        });
+        document.addEventListener("mousemove", function (e) {
+          if (!dragging) return;
+          var newW = Math.max(60, dragging.startWidth + (e.clientX - dragging.startX));
+          LANE_W[dragging.lane] = newW;
+          applyLaneWidths();
+        });
+        document.addEventListener("mouseup", function () {
+          if (!dragging) return;
+          dragging = null;
+          document.querySelectorAll(".lane-resize-handle.dragging").forEach(function (h) {
+            h.classList.remove("dragging");
+          });
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+        });
+      })();
+
       function swimlane(parties, rows) {
         // parties = [{ key:'rp', label:'RP / DC' }, ...]
-        var html = '<div class="swim-wrap"><table class="swim"><thead><tr>';
+        var html = '<div class="swim-wrap"><table class="swim">';
+        html += laneColgroup(
+          parties.map(function (p) {
+            return p.key;
+          }),
+        );
+        html += "<thead><tr>";
         html += '<th class="th-step">#</th>';
         parties.forEach(function (p) {
-          html += '<th class="th-' + p.key + '">' + esc(p.label) + "</th>";
+          html +=
+            '<th class="th-' +
+            p.key +
+            '">' +
+            esc(p.label) +
+            laneHandle(p.key) +
+            "</th>";
         });
         html += "</tr></thead><tbody>";
 
@@ -1707,387 +2228,262 @@
       };
 
       // ── API endpoint definitions per dataset ──────────────────────────────────────
-      // Each endpoint has a service_id (off-chain), a label, and list of permissions
-      // permission: { label, ext (service_extension value), extLabel }
-      // ext = null means no service_extension needed
-      // Permission granularity verified against the real YourData_Schema_* OpenAPI
-      // specs (SwaggerHub NDID/YourData_Schema_{Deposit,EMoney,CardPayment,Loan}
-      // v0.5.0): only Transactions (all datasets) and Statements (Deposit/e-Money
-      // only) actually have a Basic/Detail response split. Accounts, Balances,
-      // Scheduled Payment, and Card Payment/Loan Statements each have exactly one
-      // response shape -- no service_extension needed.
+      // Each endpoint has a service_id (off-chain), a label, and a `perms`
+      // sub-list (per NDID_YourData_ServiceID-additional.xlsx).
       //
-      // "lookback_6_months"/"lookback_12_months" are a PROPOSED extension -- not
-      // yet part of the published YourData_Schema_* spec -- kept here as a
-      // forward-looking option pending schema publication.
-      //
-      // Accounts Basic/Detail, and single-value extensions on Balances
-      // ("balances") / Outstanding Balance ("outstanding_balances") are ALSO
-      // proposed/pending -- not yet in the published schema either.
+      // Basic/Detail and Lookback used to be a single service_id's
+      // service_extension choice -- as of this update they're no longer a
+      // service_extension at all. Each combination is now its OWN service_id:
+      // {dataset}_{transactions|statement}_{basic|detail}_{001|002}, where 001
+      // = 6-month lookback and 002 = 12-month lookback. This applies to
+      // Transactions (Deposit, e-Money, Card Payment) and Statement (Deposit,
+      // e-Money only). `perms` is empty for every group now -- every
+      // selectable thing is its own service_id with its own header checkbox,
+      // same as Account/Balance/etc. always were. No group has a
+      // service_extension sub-choice anymore anywhere in this dataset.
       var DS_APIS = {
         deposit: [
           {
             ep: "accounts",
-            label: "Accounts",
+            label: "Account",
             svc: "900.deposit_account_001",
-            perms: [
-              {
-                key: "accounts_basic",
-                label: "Accounts Basic",
-                ext: "accounts_basic",
-                extLabel: "accounts_basic",
-              },
-              {
-                key: "accounts_detail",
-                label: "Accounts Detail",
-                ext: "accounts_detail",
-                extLabel: "accounts_detail",
-              },
-            ],
+            headerKey: "deposit_account",
+            perms: [],
           },
           {
             ep: "balances",
-            label: "Balances",
+            label: "Balance",
             svc: "900.deposit_balance_001",
-            perms: [
-              {
-                key: "balances",
-                label: "Balances",
-                ext: "balances",
-                extLabel: "balances",
-              },
-            ],
+            headerKey: "deposit_balance",
+            perms: [],
           },
           {
-            ep: "transactions",
-            label: "Transactions",
-            svc: "900.deposit_transactions_001",
-            perms: [
-              {
-                key: "transactions_basic",
-                label: "Transactions Basic",
-                ext: "transactions_basic",
-                extLabel: "transactions_basic",
-              },
-              {
-                key: "transactions_detail",
-                label: "Transactions Detail",
-                ext: "transactions_detail",
-                extLabel: "transactions_detail",
-              },
-              {
-                key: "deposit_transactions_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "deposit_transactions_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            ep: "transactions_basic_6",
+            label: "Transactions Basic (6 Months)",
+            svc: "900.deposit_transactions_basic_001",
+            headerKey: "deposit_transactions_basic_001",
+            perms: [],
           },
           {
-            ep: "statements",
-            label: "Statements",
-            svc: "900.deposit_statement_001",
-            perms: [
-              {
-                key: "statements_basic",
-                label: "Statements Basic",
-                ext: "statements_basic",
-                extLabel: "statements_basic",
-              },
-              {
-                key: "statements_detail",
-                label: "Statements Detail",
-                ext: "statements_detail",
-                extLabel: "statements_detail",
-              },
-              {
-                key: "deposit_statements_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "deposit_statements_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            ep: "transactions_basic_12",
+            label: "Transactions Basic (12 Months)",
+            svc: "900.deposit_transactions_basic_002",
+            headerKey: "deposit_transactions_basic_002",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_6",
+            label: "Transactions Detail (6 Months)",
+            svc: "900.deposit_transactions_detail_001",
+            headerKey: "deposit_transactions_detail_001",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_12",
+            label: "Transactions Detail (12 Months)",
+            svc: "900.deposit_transactions_detail_002",
+            headerKey: "deposit_transactions_detail_002",
+            perms: [],
+          },
+          {
+            ep: "statement_basic_6",
+            label: "Statement Basic (6 Months)",
+            svc: "900.deposit_statement_basic_001",
+            headerKey: "deposit_statement_basic_001",
+            perms: [],
+          },
+          {
+            ep: "statement_basic_12",
+            label: "Statement Basic (12 Months)",
+            svc: "900.deposit_statement_basic_002",
+            headerKey: "deposit_statement_basic_002",
+            perms: [],
+          },
+          {
+            ep: "statement_detail_6",
+            label: "Statement Detail (6 Months)",
+            svc: "900.deposit_statement_detail_001",
+            headerKey: "deposit_statement_detail_001",
+            perms: [],
+          },
+          {
+            ep: "statement_detail_12",
+            label: "Statement Detail (12 Months)",
+            svc: "900.deposit_statement_detail_002",
+            headerKey: "deposit_statement_detail_002",
+            perms: [],
           },
         ],
         cardpayment: [
           {
             ep: "accounts",
-            label: "Accounts",
+            label: "Account",
             svc: "900.cardpayment_account_001",
-            perms: [
-              {
-                key: "accounts_basic",
-                label: "Accounts Basic",
-                ext: "accounts_basic",
-                extLabel: "accounts_basic",
-              },
-              {
-                key: "accounts_detail",
-                label: "Accounts Detail",
-                ext: "accounts_detail",
-                extLabel: "accounts_detail",
-              },
-            ],
+            headerKey: "cardpayment_account",
+            perms: [],
           },
           {
             ep: "balances",
             label: "Outstanding Balance",
             svc: "900.cardpayment_outstandingbalance_001",
-            perms: [
-              {
-                key: "balances",
-                label: "Outstanding Balance",
-                ext: "outstanding_balances",
-                extLabel: "outstanding_balances",
-              },
-            ],
+            headerKey: "cardpayment_outstandingbalance",
+            perms: [],
           },
           {
-            ep: "transactions",
-            label: "Transactions",
-            svc: "900.cardpayment_transactions_001",
-            perms: [
-              {
-                key: "transactions_basic",
-                label: "Transactions Basic",
-                ext: "transactions_basic",
-                extLabel: "transactions_basic",
-              },
-              {
-                key: "transactions_detail",
-                label: "Transactions Detail",
-                ext: "transactions_detail",
-                extLabel: "transactions_detail",
-              },
-              {
-                key: "cardpayment_transactions_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "cardpayment_transactions_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            ep: "transactions_basic_6",
+            label: "Transactions Basic (6 Months)",
+            svc: "900.cardpayment_transactions_basic_001",
+            headerKey: "cardpayment_transactions_basic_001",
+            perms: [],
+          },
+          {
+            ep: "transactions_basic_12",
+            label: "Transactions Basic (12 Months)",
+            svc: "900.cardpayment_transactions_basic_002",
+            headerKey: "cardpayment_transactions_basic_002",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_6",
+            label: "Transactions Detail (6 Months)",
+            svc: "900.cardpayment_transactions_detail_001",
+            headerKey: "cardpayment_transactions_detail_001",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_12",
+            label: "Transactions Detail (12 Months)",
+            svc: "900.cardpayment_transactions_detail_002",
+            headerKey: "cardpayment_transactions_detail_002",
+            perms: [],
           },
           {
             ep: "scheduled",
             label: "Scheduled Payment",
             svc: "900.cardpayment_scheduledpayment_001",
-            perms: [
-              {
-                key: "scheduled_basic",
-                label: "Scheduled Payment",
-                ext: null,
-                extLabel: "(none)",
-              },
-            ],
+            headerKey: "cardpayment_scheduledpayment",
+            perms: [],
           },
           {
             ep: "statements",
-            label: "Statements",
+            label: "Statement",
             svc: "900.cardpayment_statement_001",
-            perms: [
-              {
-                key: "statements_basic",
-                label: "Statements",
-                ext: null,
-                extLabel: "(none)",
-              },
-              {
-                key: "cardpayment_statements_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "cardpayment_statements_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            headerKey: "cardpayment_statement",
+            perms: [],
           },
         ],
         loan: [
           {
             ep: "accounts",
-            label: "Accounts",
+            label: "Account",
             svc: "900.loan_account_001",
-            perms: [
-              {
-                key: "accounts_basic",
-                label: "Accounts Basic",
-                ext: "accounts_basic",
-                extLabel: "accounts_basic",
-              },
-              {
-                key: "accounts_detail",
-                label: "Accounts Detail",
-                ext: "accounts_detail",
-                extLabel: "accounts_detail",
-              },
-            ],
+            headerKey: "loan_account",
+            perms: [],
           },
           {
             ep: "balances",
             label: "Outstanding Balance",
             svc: "900.loan_outstandingbalance_001",
-            perms: [
-              {
-                key: "balances",
-                label: "Outstanding Balance",
-                ext: "outstanding_balances",
-                extLabel: "outstanding_balances",
-              },
-            ],
+            headerKey: "loan_outstandingbalance",
+            perms: [],
           },
           {
             ep: "statements",
-            label: "Statements",
+            label: "Statement",
             svc: "900.loan_statement_001",
-            perms: [
-              {
-                key: "statements_basic",
-                label: "Statements",
-                ext: null,
-                extLabel: "(none)",
-              },
-              {
-                key: "loan_statements_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "loan_statements_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            headerKey: "loan_statement",
+            perms: [],
           },
         ],
         emoney: [
           {
             ep: "accounts",
-            label: "Accounts",
+            label: "Account",
             svc: "900.emoney_account_001",
-            perms: [
-              {
-                key: "accounts_basic",
-                label: "Accounts Basic",
-                ext: "accounts_basic",
-                extLabel: "accounts_basic",
-              },
-              {
-                key: "accounts_detail",
-                label: "Accounts Detail",
-                ext: "accounts_detail",
-                extLabel: "accounts_detail",
-              },
-            ],
+            headerKey: "emoney_account",
+            perms: [],
           },
           {
             ep: "balances",
-            label: "Balances",
+            label: "Balance",
             svc: "900.emoney_balance_001",
-            perms: [
-              {
-                key: "balances",
-                label: "Balances",
-                ext: "balances",
-                extLabel: "balances",
-              },
-            ],
+            headerKey: "emoney_balance",
+            perms: [],
           },
           {
-            ep: "transactions",
-            label: "Transactions",
-            svc: "900.emoney_transactions_001",
-            perms: [
-              {
-                key: "transactions_basic",
-                label: "Transactions Basic",
-                ext: "transactions_basic",
-                extLabel: "transactions_basic",
-              },
-              {
-                key: "transactions_detail",
-                label: "Transactions Detail",
-                ext: "transactions_detail",
-                extLabel: "transactions_detail",
-              },
-              {
-                key: "emoney_transactions_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "emoney_transactions_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            ep: "transactions_basic_6",
+            label: "Transactions Basic (6 Months)",
+            svc: "900.emoney_transactions_basic_001",
+            headerKey: "emoney_transactions_basic_001",
+            perms: [],
           },
           {
-            ep: "statements",
-            label: "Statements",
-            svc: "900.emoney_statement_001",
-            perms: [
-              {
-                key: "statements_basic",
-                label: "Statements Basic",
-                ext: "statements_basic",
-                extLabel: "statements_basic",
-              },
-              {
-                key: "statements_detail",
-                label: "Statements Detail",
-                ext: "statements_detail",
-                extLabel: "statements_detail",
-              },
-              {
-                key: "emoney_statements_lookback_6_months",
-                label: "Looks Back 6 Months",
-                ext: "lookback_6_months",
-                extLabel: "lookback_6_months",
-              },
-              {
-                key: "emoney_statements_lookback_12_months",
-                label: "Looks Back 12 Months",
-                ext: "lookback_12_months",
-                extLabel: "lookback_12_months",
-              },
-            ],
+            ep: "transactions_basic_12",
+            label: "Transactions Basic (12 Months)",
+            svc: "900.emoney_transactions_basic_002",
+            headerKey: "emoney_transactions_basic_002",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_6",
+            label: "Transactions Detail (6 Months)",
+            svc: "900.emoney_transactions_detail_001",
+            headerKey: "emoney_transactions_detail_001",
+            perms: [],
+          },
+          {
+            ep: "transactions_detail_12",
+            label: "Transactions Detail (12 Months)",
+            svc: "900.emoney_transactions_detail_002",
+            headerKey: "emoney_transactions_detail_002",
+            perms: [],
+          },
+          {
+            ep: "statement_basic_6",
+            label: "Statement Basic (6 Months)",
+            svc: "900.emoney_statement_basic_001",
+            headerKey: "emoney_statement_basic_001",
+            perms: [],
+          },
+          {
+            ep: "statement_basic_12",
+            label: "Statement Basic (12 Months)",
+            svc: "900.emoney_statement_basic_002",
+            headerKey: "emoney_statement_basic_002",
+            perms: [],
+          },
+          {
+            ep: "statement_detail_6",
+            label: "Statement Detail (6 Months)",
+            svc: "900.emoney_statement_detail_001",
+            headerKey: "emoney_statement_detail_001",
+            perms: [],
+          },
+          {
+            ep: "statement_detail_12",
+            label: "Statement Detail (12 Months)",
+            svc: "900.emoney_statement_detail_002",
+            headerKey: "emoney_statement_detail_002",
+            perms: [],
           },
         ],
       };
 
-      // Selected permissions: { deposit: { 'transactions_basic': true }, ... }
-      var selectedPerms = { deposit: { transactions_basic: true } };
+      // Selected permissions: { deposit: { 'deposit_transactions_basic_002': true }, ... }
+      // Default scenario pre-selects Transactions Basic (12 months) -- one
+      // concrete service_id, no service_extension involved.
+      var selectedPerms = {
+        deposit: {
+          deposit_transactions_basic_002: true,
+        },
+      };
 
-      // For step 4 data request: independently-selectable AS / account / service_id /
-      // service_extension. Each is cascaded -- changing a parent re-derives/resets
-      // whichever children are no longer valid.
-      var step4Sel = { asId: "", accKey: "", svcId: "", ext: [] };
+      // For step 4 data request: independently-selectable AS / account /
+      // service_id. Each is cascaded -- changing a parent re-derives/resets
+      // whichever children are no longer valid. No service_extension picker
+      // anymore -- Basic/Detail/Lookback are now baked into the service_id
+      // itself, so there's nothing left to independently toggle here.
+      var step4Sel = { asId: "", accKey: "", svcId: "" };
 
       // Resolve step4Sel against current config, fixing up anything invalid, and
       // return everything buildStep4Inner needs plus the picker HTML.
@@ -2129,22 +2525,11 @@
           return s.service_id === step4Sel.svcId;
         });
 
-        var extOptions = (activeSvc && activeSvc.service_extension) || [];
-        if (extOptions.length) {
-          step4Sel.ext = step4Sel.ext.filter(function (e) {
-            return extOptions.indexOf(e) >= 0;
-          });
-          if (!step4Sel.ext.length) step4Sel.ext = [extOptions[0]];
-        } else {
-          step4Sel.ext = [];
-        }
-
         return {
           selAccounts: selAccounts,
           asOptions: asOptions,
           accOptions: accOptions,
           svcOptions: svcOptions,
-          extOptions: extOptions,
           activeAcc: activeAcc,
           activeSvc: activeSvc,
         };
@@ -2226,29 +2611,6 @@
             : '<option value="">(no permissions selected)</option>') +
           "</select></div>";
 
-        html +=
-          '<div class="fg" style="flex:1;min-width:150px;margin-bottom:0">' +
-          "<label>Service Extension</label>" +
-          '<div style="display:flex;flex-direction:column;gap:4px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg)">' +
-          (resolved.extOptions.length
-            ? resolved.extOptions
-                .map(function (e) {
-                  var checked = step4Sel.ext.indexOf(e) >= 0;
-                  return (
-                    '<label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:400;cursor:pointer">' +
-                    '<input type="checkbox" style="width:13px;height:13px;accent-color:var(--primary);flex-shrink:0"' +
-                    (checked ? " checked" : "") +
-                    ' onchange="toggleStep4Ext(\'' +
-                    esc(e) +
-                    "')\">" +
-                    esc(e) +
-                    "</label>"
-                  );
-                })
-                .join("")
-            : '<span style="font-size:.75rem;color:var(--muted)">(none)</span>') +
-          "</div></div>";
-
         html += "</div>";
         return html;
       }
@@ -2257,27 +2619,17 @@
         step4Sel.asId = v;
         step4Sel.accKey = "";
         step4Sel.svcId = "";
-        step4Sel.ext = [];
         var el = document.getElementById("step-4-inner");
         if (el) el.innerHTML = buildStep4Inner();
       }
       function onStep4AccChange(v) {
         step4Sel.accKey = v;
         step4Sel.svcId = "";
-        step4Sel.ext = [];
         var el = document.getElementById("step-4-inner");
         if (el) el.innerHTML = buildStep4Inner();
       }
       function onStep4SvcChange(v) {
         step4Sel.svcId = v;
-        step4Sel.ext = [];
-        var el = document.getElementById("step-4-inner");
-        if (el) el.innerHTML = buildStep4Inner();
-      }
-      function toggleStep4Ext(ext) {
-        var idx = step4Sel.ext.indexOf(ext);
-        if (idx >= 0) step4Sel.ext.splice(idx, 1);
-        else step4Sel.ext.push(ext);
         var el = document.getElementById("step-4-inner");
         if (el) el.innerHTML = buildStep4Inner();
       }
@@ -2286,17 +2638,25 @@
 
       function getSelectedSvcList(ds) {
         // Returns array of { service_id, service_version, service_extension? }
-        // for the permissions selected for this dataset. Permissions that share
-        // the same service_id (e.g. Accounts Basic + Accounts Detail) are merged
-        // into a single entry with all selected extensions, not one entry each.
+        // for the permissions selected for this dataset -- this is the RP's own
+        // raw selection (what the RP picked in the picker UI), used to render
+        // what the RP actually sends (pre-consent request_params, the as_token's
+        // embedded intent, complete-consent request_params).
+        //
+        // Every group's checkbox lives on its own header row (§ DS_APIS
+        // comment above) -- inclusion is driven solely by that headerKey
+        // checkbox. No group has `perms` sub-items anymore (Basic/Detail/
+        // Lookback all moved to the service_id level), so service_extension
+        // is never populated here -- the `perms`/`exts` handling below is
+        // generic leftover plumbing, harmless to keep.
         var result = [];
         var permsForDs = selectedPerms[ds] || {};
         (DS_APIS[ds] || []).forEach(function (epDef) {
           var exts = [];
-          var anySelected = false;
+          var anySelected = epDef.headerKey ? !!permsForDs[epDef.headerKey] : false;
           epDef.perms.forEach(function (p) {
             if (permsForDs[p.key]) {
-              anySelected = true;
+              if (!epDef.headerKey) anySelected = true;
               if (p.ext) exts.push(p.ext);
             }
           });
@@ -2375,37 +2735,67 @@
           html += "</div>";
 
           // ── API / permission rows ──
+          // Groups with a headerKey render their own service_id-level checkbox
+          // directly on the row label (left column), separate from any
+          // service_extension sub-choices in `perms` on the right -- per
+          // regulator feedback that "data service id" and "service_extension"
+          // shouldn't be conflated into the same checkbox list.
           (DS_APIS[ds] || []).forEach(function (epDef) {
             html += '<div class="api-ep-row">';
-            html += '<div class="api-ep-name">' + esc(epDef.label) + "</div>";
-            html += '<div class="api-perm-col">';
-            epDef.perms.forEach(function (p) {
-              var checked = !!(selectedPerms[ds] && selectedPerms[ds][p.key]);
-              var selCls = checked ? " selected" : "";
+            if (epDef.headerKey) {
+              var hChecked = !!(
+                selectedPerms[ds] && selectedPerms[ds][epDef.headerKey]
+              );
               html +=
-                '<div class="api-perm-item' +
-                selCls +
-                '" onclick="togglePerm(\'' +
+                '<div class="api-ep-name api-ep-name-checkbox" onclick="togglePerm(\'' +
                 esc(ds) +
                 "','" +
-                esc(p.key) +
+                esc(epDef.headerKey) +
                 "')\">" +
                 '<input type="checkbox"' +
-                (checked ? " checked" : "") +
+                (hChecked ? " checked" : "") +
                 " onclick=\"event.stopPropagation();togglePerm('" +
                 esc(ds) +
                 "','" +
-                esc(p.key) +
+                esc(epDef.headerKey) +
                 "')\">" +
-                '<span class="api-perm-label">' +
-                esc(p.label) +
-                "</span>" +
-                (p.ext
-                  ? '<span class="api-perm-ext">' + esc(p.ext) + "</span>"
-                  : "") +
-                "</div>";
-            });
-            html += "</div></div>";
+                "<span>" +
+                esc(epDef.label) +
+                "</span></div>";
+            } else {
+              html += '<div class="api-ep-name">' + esc(epDef.label) + "</div>";
+            }
+            if (epDef.perms.length) {
+              html += '<div class="api-perm-col">';
+              epDef.perms.forEach(function (p) {
+                var checked = !!(selectedPerms[ds] && selectedPerms[ds][p.key]);
+                var selCls = checked ? " selected" : "";
+                html +=
+                  '<div class="api-perm-item' +
+                  selCls +
+                  '" onclick="togglePerm(\'' +
+                  esc(ds) +
+                  "','" +
+                  esc(p.key) +
+                  "')\">" +
+                  '<input type="checkbox"' +
+                  (checked ? " checked" : "") +
+                  " onclick=\"event.stopPropagation();togglePerm('" +
+                  esc(ds) +
+                  "','" +
+                  esc(p.key) +
+                  "')\">" +
+                  '<span class="api-perm-label">' +
+                  esc(p.label) +
+                  "</span>" +
+                  (p.ext
+                    ? '<span class="api-perm-ext">' + esc(p.ext) + "</span>"
+                    : "") +
+                  "</div>";
+              });
+              html += "</div>";
+            }
+            html += "</div>";
           });
           html += "</div>";
         });
@@ -2446,10 +2836,14 @@
               if (!e.checked && idx >= 0) dsAsList[ds].splice(idx, 1);
             });
           }
-          // Also save perm checkboxes
+          // Also save perm checkboxes -- group-level headerKey checkboxes
+          // (no group has service_extension sub-items anymore, but
+          // .api-perm-item is matched too in case that ever changes again)
           if (blk && blk.querySelectorAll) {
             var pInputs = Array.from(
-              blk.querySelectorAll(".api-perm-item input[type=checkbox]"),
+              blk.querySelectorAll(
+                ".api-perm-item input[type=checkbox], .api-ep-name-checkbox input[type=checkbox]",
+              ),
             );
             pInputs.forEach(function (e) {
               var m = (e.getAttribute("onclick") || "").match(
@@ -2480,15 +2874,17 @@
             {
               namespace: "account_id",
               identifier: "alpha-dep-a1b2c3d4",
-              visible_identifier: "***-***-1234",
-              identifier_extension: '{"accountSubType":"CURRENT"}',
+              visible_identifier: "XXX-XXX-1234",
+              identifier_extension:
+                '{"accountSubType":"CURRENT","institutionName":"Alpha Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Current Account",
             },
             {
               namespace: "account_id",
               identifier: "alpha-dep-e5f6a7b8",
-              visible_identifier: "***-***-5678",
-              identifier_extension: '{"accountSubType":"SAVINGS"}',
+              visible_identifier: "XXX-XXX-5678",
+              identifier_extension:
+                '{"accountSubType":"SAVINGS","institutionName":"Alpha Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Savings Account",
             },
           ],
@@ -2496,32 +2892,43 @@
             {
               namespace: "account_id",
               identifier: "beta-dep-c9d0e1f2",
-              visible_identifier: "***-***-9001",
-              identifier_extension: '{"accountSubType":"CURRENT"}',
+              visible_identifier: "XXX-XXX-9001",
+              identifier_extension:
+                '{"accountSubType":"CURRENT","institutionName":"Beta Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Current Account",
             },
           ],
         },
-        // identifier_extension is deposit-only ({ accountSubType: SAVINGS|CURRENT|TERM }) --
-        // matches the real AccountResponseDetail.accountSubType enum; not yet formally
-        // specified in the SwaggerHub identifier_extension field itself (free-form
-        // JSON string per spec), but this is the intended convention. Other datasets
-        // don't carry it (grayed out in that reference).
+        // identifier_extension is deposit-only -- a JSON string per spec (still
+        // free-form, no formal sub-schema), but the SwaggerHub v1.0.0 example now
+        // shows the intended shape: { accountSubType, institutionName,
+        // accountStatus, accountName } -- accountSubType matches the real
+        // AccountResponseDetail.accountSubType enum (SAVINGS|CURRENT|TERM); the
+        // other three mirror the same-named AccountResponseDetail fields. Other
+        // datasets don't carry it (grayed out in that reference).
         // Card Payment visible_identifier is masked BIN + last 4 (first 6 / last 4
         // visible, middle masked) -- per NDID's "Response Schema for pre_consent"
-        // reference, not a fully-masked "****-****-****-NNNN" style.
+        // reference, not a fully-masked "XXXX-XXXX-XXXX-NNNN" style.
+        // Card Payment's identifier_extension shape is entirely different from
+        // Deposit's -- per YourData_Schema_Common v1.0.1's
+        // YourDataAccountItem_CardPayment: issuerName, cardStatus, isPrimary,
+        // cardType. No accountSubType here.
         cardpayment: {
           as1: [
             {
               namespace: "card_number",
               identifier: "alpha-card-x1y2z3w4",
               visible_identifier: "4111-11XX-XXXX-1111",
+              identifier_extension:
+                '{"issuerName":"Alpha Bank","cardStatus":"ACTIVE","isPrimary":true,"cardType":"CREDIT"}',
               label: "VISA Card",
             },
             {
               namespace: "card_number",
               identifier: "alpha-card-m5n6p7q8",
               visible_identifier: "5500-00XX-XXXX-2222",
+              identifier_extension:
+                '{"issuerName":"Alpha Bank","cardStatus":"ACTIVE","isPrimary":false,"cardType":"CREDIT"}',
               label: "Mastercard",
             },
           ],
@@ -2530,16 +2937,23 @@
               namespace: "card_number",
               identifier: "beta-card-r5s6t7u8",
               visible_identifier: "4111-22XX-XXXX-3333",
+              identifier_extension:
+                '{"issuerName":"Beta Bank","cardStatus":"ACTIVE","isPrimary":true,"cardType":"CREDIT"}',
               label: "VISA Card",
             },
           ],
         },
+        // Loan's identifier_extension per YourDataAccountItem_Loan: accountName,
+        // institutionCode (exactly 13 chars per spec), institutionName,
+        // loanTypeCode, loanTypePersonalRegCode.
         loan: {
           as1: [
             {
               namespace: "account_id",
               identifier: "alpha-loan-l1m2n3o4",
-              visible_identifier: "***-***-9900",
+              visible_identifier: "XXX-XXX-9900",
+              identifier_extension:
+                '{"accountName":"Mr. Somchai Jaidee","institutionCode":"0004000000000","institutionName":"Alpha Bank","loanTypeCode":"2003200002","loanTypePersonalRegCode":"01"}',
               label: "Personal Loan",
             },
           ],
@@ -2547,20 +2961,26 @@
             {
               namespace: "account_id",
               identifier: "beta-loan-p5q6r7s8",
-              visible_identifier: "***-***-9901",
+              visible_identifier: "XXX-XXX-9901",
+              identifier_extension:
+                '{"accountName":"Mr. Somchai Jaidee","institutionCode":"0004000000000","institutionName":"Beta Bank","loanTypeCode":"2003200002","loanTypePersonalRegCode":"01"}',
               label: "Personal Loan",
             },
           ],
         },
         // e-Money namespace is "e_wallet_id" (not "account_id"), and
         // visible_identifier is a masked mobile number -- per NDID's
-        // "Response Schema for pre_consent" reference.
+        // "Response Schema for pre_consent" reference. identifier_extension
+        // per YourDataAccountItem_EMoney: institutionName, accountStatus,
+        // accountName -- no accountSubType (that's Deposit-only).
         emoney: {
           as1: [
             {
               namespace: "e_wallet_id",
               identifier: "alpha-em-p1q2r3s4",
               visible_identifier: "081-234XXXX",
+              identifier_extension:
+                '{"institutionName":"Alpha Wallet","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Prepaid Wallet",
             },
           ],
@@ -2569,6 +2989,8 @@
               namespace: "e_wallet_id",
               identifier: "beta-em-u9v0w1x2",
               visible_identifier: "089-567XXXX",
+              identifier_extension:
+                '{"institutionName":"Beta Wallet","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Prepaid Wallet",
             },
           ],
@@ -2585,8 +3007,8 @@
         "alpha-dep-a1b2c3d4": "123-456-1234",
         "alpha-dep-e5f6a7b8": "234-567-5678",
         "beta-dep-c9d0e1f2": "345-678-9001",
-        "alpha-loan-l1m2n3o4": "***-***-9900",
-        "beta-loan-p5q6r7s8": "***-***-9901",
+        "alpha-loan-l1m2n3o4": "XXX-XXX-9900",
+        "beta-loan-p5q6r7s8": "XXX-XXX-9901",
       };
 
       // selectedAccounts: key = 'ds|asId|identifier' -> bool
@@ -2772,21 +3194,45 @@
           })
           .join(" ");
 
+        // Pre-consent request_params carries dataset-specific fields on top of
+        // usage_type/data_service_list -- per YourData_Schema_Common v1.0.1,
+        // each dataset's pre_consent_* service defines a different extra set:
+        // only Deposit has accountSubType; Loan has loanTypeCode instead;
+        // Card Payment/e-Money have neither (just language + auxiliaryReferenceId).
+        function preConsentExtraParams(ds) {
+          var base = {
+            language: "EN",
+            auxiliaryReferenceId: "aux-pre-consent-1750000000000",
+          };
+          if (ds === "deposit") {
+            base.accountSubType = "ALL";
+          } else if (ds === "loan") {
+            base.loanTypeCode = "2003200002";
+          }
+          return base;
+        }
+
         // RP -> NDID on-chain request
         var drList = cfg.datasets.map(function (ds) {
           return {
             service_id: SVC_PRE[ds] || "900.pre_consent_" + ds + "_001",
             as_id_list: dsAs(ds),
             min_as: 0,
-            request_params: JSON.stringify({
-              token_objective: cfg.tokenObjective,
-              usage_type: cfg.ct,
-              data_service_list: getSelectedSvcListForIntent(ds),
-            }),
+            request_params: JSON.stringify(
+              Object.assign(
+                {
+                  token_objective: cfg.tokenObjective,
+                  usage_type: cfg.ct,
+                  data_service_list: getSelectedSvcListForIntent(ds),
+                },
+                preConsentExtraParams(ds),
+              ),
+            ),
           };
         });
         var ndidReq = {
-          mode: 3,
+          mode: 2,
+          request_type: "AuthenOnly",
           reference_id: "pre-consent-1750000000000",
           idp_id_list: [cfg.idp],
           callback_url: "http://rp-cb:6001/rp/request/pre-consent-xxx",
@@ -2795,9 +3241,9 @@
           request_message:
             "Please consent to share your data (REF: pre-consent-xxx)",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           min_idp: 1,
-          request_timeout: 600,
+          request_timeout: 300,
         };
         var ndidResp = { request_id: "req-pre-xxxx", initial_salt: "<salt>" };
 
@@ -2805,7 +3251,7 @@
         var idpIncoming = {
           node_id: cfg.idp,
           type: "incoming_request",
-          mode: 3,
+          mode: 2,
           request_id: "req-pre-xxxx",
           reference_group_code: "rg-xxxx",
           request_message:
@@ -2814,7 +3260,7 @@
           request_message_salt: "<salt>",
           requester_node_id: "rp1",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           data_request_list: drList.map(function (dr) {
             return {
               service_id: dr.service_id,
@@ -2823,16 +3269,17 @@
             };
           }),
           initial_salt: "<salt>",
+          request_type: ndidReq.request_type,
           creation_time: 1750000000000,
           creation_block_height: "12345:1",
-          request_timeout: 600,
+          request_timeout: 300,
         };
         var idpResp = {
           reference_id: "idp-response-pre-consent-xxx",
           callback_url: "http://idp-cb:6000/idp/response_result",
           request_id: "req-pre-xxxx",
           ial: 2.3,
-          aal: 2.2,
+          aal: 2.1,
           status: "accept",
           accessor_id: "acc-xxxx",
           signature: "<base64-rsa-sig>",
@@ -2868,23 +3315,39 @@
               node_id: asId,
               type: "data_request",
               request_id: "req-pre-xxxx",
-              mode: 3,
+              mode: 2,
               namespace: "citizen_id",
               identifier: cfg.cid,
               service_id: svcId,
               requester_node_id: "rp1",
-              request_params: JSON.stringify({
-                token_objective: cfg.tokenObjective,
-                usage_type: cfg.ct,
-                data_service_list: getSelectedSvcListForIntent(ds),
-              }),
+              request_params: JSON.stringify(
+                Object.assign(
+                  {
+                    token_objective: cfg.tokenObjective,
+                    usage_type: cfg.ct,
+                    data_service_list: getSelectedSvcListForIntent(ds),
+                  },
+                  preConsentExtraParams(ds),
+                ),
+              ),
               response_signature_list: ["<base64-signature>"],
               max_ial: 2.3,
-              max_aal: 2.2,
+              max_aal: 2.1,
+              request_type: ndidReq.request_type,
               creation_time: 1750000000000,
               creation_block_height: "12345:1",
-              request_timeout: 600,
+              request_timeout: 300,
             };
+            var bid = "pre-cb-" + ds + "-" + asId + "-" + _uid();
+            var subTxt =
+              esc(DS_LABEL[ds] || ds) +
+              " -> " +
+              esc(asName) +
+              " . " +
+              accs.length +
+              " account" +
+              (accs.length !== 1 ? "s" : "");
+
             var asTokenReq = {
               requester_node_id: "rp1",
               as_node_id: asId,
@@ -2892,7 +3355,7 @@
               identifier: cfg.cid,
               source_request_id_list: ["req-pre-xxxx"],
               usage_type: "one_time",
-              expiration_datetime: Math.floor(Date.now() / 1000) + 15 * 60,
+              expiration_datetime: 1750000000 + 15 * 60,
               validate_identifier: true,
               validate_service_id: true,
               validate_service_extension: false,
@@ -2910,26 +3373,50 @@
                 },
               ],
             };
+            var asToken = mockJwt(
+              withServerGeneratedTokenFields(
+                asTokenReq,
+                "as_token|" + ds + "|" + asId,
+              ),
+              {
+                Dataset: DS_LABEL[ds] || ds,
+                AS: asName + " (" + asId + ")",
+                "Token type": "as_token (pre-consent exchange token)",
+                Purpose:
+                  "Exchanged by RP for the real consent_token(s) at Complete-Consent",
+              },
+            );
             var asDataOut = {
+              auxiliaryReferenceId: "aux-pre-consent-1750000000000",
               sub_identity_list: accs,
-              authorization:
-                "<as_token JWT for " + esc(DS_LABEL[ds]) + " x " + esc(asName) + ">",
+              authorization: asToken,
             };
             var asSend = {
               reference_id: "ndid-data-" + ds + "-" + asId,
               callback_url: "http://as-cb:6002/as/response",
               data: JSON.stringify(asDataOut),
             };
+            var stepsHtml =
+              lbl(
+                "1. AS receives callback (POST /as/service/" + esc(svcId) + ")",
+              ) +
+              cjb(asCb, "data_request callback") +
+              note(
+                "SLA: the AS must respond (steps 2-3 below) within 5 seconds of receiving this callback -- pre-consent is meant to be near-instant since it's just returning a masked account list, not fetching real data.",
+              ) +
+              lbl("2. AS calls POST /v7/yourdata/utility/token -> as_token") +
+              cjb(asTokenReq, "Create as_token") +
+              note(
+                "The embedded data_service_list (inside service_extension[0] above) reflects only what this AS can actually provide. The RP's requested data_service_list (from the pre-consent callback) may include more service_ids than this AS supports -- the AS includes only the service_ids it can genuinely serve in the intent it embeds here, silently omitting the rest. If none of the requested service_ids can be provided at all, the AS responds with error 40400 (Invalid data) instead of creating an as_token with an empty data_service_list. This decision is made once, here at pre-consent -- complete-consent just honors whatever was resolved into this embedded intent.",
+              ) +
+              lbl(
+                "3. AS responds: POST /v7/as/data/" +
+                  esc("req-pre-xxxx") +
+                  "/" +
+                  esc(svcId),
+              ) +
+              cjb(asSend, "AS send data (masked accounts + as_token)");
 
-            var bid = "pre-cb-" + ds + "-" + asId + "-" + _uid();
-            var subTxt =
-              esc(DS_LABEL[ds] || ds) +
-              " -> " +
-              esc(asName) +
-              " . " +
-              accs.length +
-              " account" +
-              (accs.length !== 1 ? "s" : "");
             asBlocksHtml +=
               '<div class="req-block">' +
               '<div class="req-block-hd" id="' +
@@ -2954,19 +3441,7 @@
               bid +
               '-body">' +
               '<div class="req-block-inner">' +
-              lbl(
-                "1. AS receives callback (POST /as/service/" + esc(svcId) + ")",
-              ) +
-              cjb(asCb, "data_request callback") +
-              lbl("2. AS calls POST /v7/yourdata/utility/token -> as_token") +
-              cjb(asTokenReq, "Create as_token") +
-              lbl(
-                "3. AS responds: POST /v7/as/data/" +
-                  esc("req-pre-xxxx") +
-                  "/" +
-                  esc(svcId),
-              ) +
-              cjb(asSend, "AS send data (masked accounts + as_token)") +
+              stepsHtml +
               "</div></div></div>";
           });
         });
@@ -2977,10 +3452,10 @@
           type: "request_status",
           request_id: "req-pre-xxxx",
           requester_node_id: "rp1",
-          mode: 3,
+          mode: 2,
           request_message_hash: "<sha256-hash>",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           min_idp: 1,
           idp_id_list: [cfg.idp],
           response_list: [
@@ -2995,7 +3470,8 @@
               }),
             };
           }),
-          request_timeout: 600,
+          request_type: ndidReq.request_type,
+          request_timeout: 300,
           status: "completed",
           closed: true,
           timed_out: false,
@@ -3016,17 +3492,55 @@
                 };
               },
             );
+            var asTokenReqForGet = {
+              requester_node_id: "rp1",
+              as_node_id: asId,
+              namespace: "citizen_id",
+              identifier: cfg.cid,
+              source_request_id_list: ["req-pre-xxxx"],
+              usage_type: "one_time",
+              expiration_datetime: 1750000000 + 15 * 60,
+              validate_identifier: true,
+              validate_service_id: true,
+              validate_service_extension: false,
+              service_id_list: [
+                {
+                  service_id: "900.complete_consent_001",
+                  service_version: "v1",
+                  service_extension: [
+                    JSON.stringify({
+                      token_objective: cfg.tokenObjective,
+                      usage_type: cfg.ct,
+                      data_service_list: getSelectedSvcListForIntent(ds),
+                    }),
+                  ],
+                },
+              ],
+            };
+            var asTokenForGet = mockJwt(
+              withServerGeneratedTokenFields(
+                asTokenReqForGet,
+                "as_token|" + ds + "|" + asId,
+              ),
+              {
+                Dataset: DS_LABEL[ds] || ds,
+                AS: (AS_NAME[asId] || asId) + " (" + asId + ")",
+                "Token type": "as_token (pre-consent exchange token)",
+                Purpose:
+                  "Exchanged by RP for the real consent_token(s) at Complete-Consent",
+              },
+            );
             ndidGetData.push({
               source_node_id: asId,
               service_id: SVC_PRE[ds] || "900.pre_consent_" + ds + "_001",
+              source_signature: "<base64-signature>",
+              signature_signing_algorithm: "RSASSA_PKCS1_V1_5_SHA_256",
+              signature_signing_key_version: 1,
+              data_salt: "<salt>",
               data: JSON.stringify({
+                auxiliaryReferenceId: "aux-pre-consent-1750000000000",
                 sub_identity_list: accs,
-                authorization:
-                  "<as_token JWT for " +
-                  esc(DS_LABEL[ds]) +
-                  " x " +
-                  esc(AS_NAME[asId] || asId) +
-                  ">",
+                authorization: asTokenForGet,
               }),
             });
           });
@@ -3386,6 +3900,49 @@
           };
         });
         var reqId = "req-cc-" + ds + "-" + asId;
+
+        // Reconstruct the exact same as_token payload created back in Step 2 --
+        // mockJwt() caches by payload content, so this resolves to the identical
+        // JWT string the AS issued, rather than minting a new one.
+        var asTokenReqSpend = {
+          requester_node_id: "rp1",
+          as_node_id: asId,
+          namespace: "citizen_id",
+          identifier: cfg.cid,
+          source_request_id_list: ["req-pre-xxxx"],
+          usage_type: "one_time",
+          expiration_datetime: 1750000000 + 15 * 60,
+          validate_identifier: true,
+          validate_service_id: true,
+          validate_service_extension: false,
+          service_id_list: [
+            {
+              service_id: "900.complete_consent_001",
+              service_version: "v1",
+              service_extension: [
+                JSON.stringify({
+                  token_objective: cfg.tokenObjective,
+                  usage_type: cfg.ct,
+                  data_service_list: getSelectedSvcListForIntent(ds),
+                }),
+              ],
+            },
+          ],
+        };
+        var asTokenSpend = mockJwt(
+          withServerGeneratedTokenFields(
+            asTokenReqSpend,
+            "as_token|" + ds + "|" + asId,
+          ),
+          {
+            Dataset: DS_LABEL[ds] || ds,
+            AS: asName + " (" + asId + ")",
+            "Token type": "as_token (pre-consent exchange token)",
+            Purpose:
+              "Exchanged by RP for the real consent_token(s) at Complete-Consent",
+          },
+        );
+
         var ydReq = {
           service_id: "900.complete_consent_001",
           service_version: "v1",
@@ -3395,9 +3952,8 @@
           namespace: "citizen_id",
           identifier: cfg.cid,
           request_params: JSON.stringify(selAccountsPayload),
-          authorization:
-            "<as_token for (" + esc(DS_LABEL[ds]) + " x " + esc(asName) + ")>",
-          request_timeout: 900,
+          authorization: asTokenSpend,
+          request_timeout: 180,
         };
 
         // ── AS callback ───────────────────────────────────────────────────────────
@@ -3411,30 +3967,30 @@
           namespace: "citizen_id",
           identifier: cfg.cid,
           request_params: JSON.stringify(selAccountsPayload),
-          authorization:
-            "<as_token JWT for " +
-            esc(DS_LABEL[ds]) +
-            " x " +
-            esc(asName) +
-            ">",
+          authorization: asTokenSpend,
           request_time: 1750000000000,
-          request_timeout: 900,
+          request_timeout: 180,
         };
 
         // ── Token create calls ────────────────────────────────────────────────────
         var tokenBlocksHtml = "";
+        var consentTokenJwts = [];
         if (accsForToken.length === 0) {
           tokenBlocksHtml =
             '<div class="note">No accounts selected for this token. Select accounts above.</div>';
         } else {
-          tokenBlocksHtml = lbl(
-            "POST /v7/yourdata/utility/token -- " +
-              totalTokens +
-              " call" +
-              (totalTokens > 1 ? "s" : "") +
-              (isOneTime
-                ? " (one_time: 1 per account x service_id)"
-                : " (recurring: 1 per account, all services)"),
+          tokenBlocksHtml =
+            note(
+              "service_id_list here reflects only what this AS decided it can actually provide at pre-consent (Step 2) -- the filtering/40400 decision already happened when the as_token's embedded intent was created; complete-consent just honors it.",
+            ) +
+            lbl(
+              "POST /v7/yourdata/utility/token -- " +
+                totalTokens +
+                " call" +
+                (totalTokens > 1 ? "s" : "") +
+                (isOneTime
+                  ? " (one_time: 1 per account x service_id)"
+                  : " (recurring: 1 per account, all services)"),
           );
           tokenCalls.forEach(function (tc, i) {
             // Datasets without a REAL_ACCOUNT_ID entry (Card Payment, e-Money) don't
@@ -3469,14 +4025,42 @@
             // token creation fails with TOKEN_MUST_HAVE_EXPIRATION_TIME otherwise.
             if (cfg.ct === "continuous_with_expire") {
               tokenReq.expiration_datetime =
-                cfg.expirationDatetime ||
-                Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60;
+                cfg.expirationDatetime || 1750000000 + 90 * 24 * 60 * 60;
             } else if (cfg.ct !== "continuous_no_expire") {
-              // one_time -- give it a real redemption window (Step 4 may not
-              // happen immediately), not just a few minutes.
-              tokenReq.expiration_datetime =
-                Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+              // one_time -- AS sets a 24-hour redemption window (the
+              // industry-standard window for this token type).
+              tokenReq.expiration_datetime = 1750000000 + 24 * 60 * 60;
             }
+            var consentTokenSeed =
+              "consent_token|" +
+              ds +
+              "|" +
+              asId +
+              "|" +
+              tc.acc.identifier +
+              "|" +
+              tc.svcList
+                .map(function (s) {
+                  return s.service_id;
+                })
+                .sort()
+                .join(",");
+            var consentToken = mockJwt(
+              withServerGeneratedTokenFields(tokenReq, consentTokenSeed),
+              {
+                Dataset: DS_LABEL[ds] || ds,
+                AS: asName + " (" + asId + ")",
+                Account: tc.acc.visible_identifier,
+                "Service(s)": tc.svcList
+                  .map(function (s) {
+                    return s.service_id;
+                  })
+                  .join(", "),
+                "Token type": "consent_token (real data-access token)",
+                usage_type: cfg.ct,
+              },
+            );
+            consentTokenJwts.push(consentToken);
             var ttl =
               "Token " +
               (i + 1) +
@@ -3499,11 +4083,7 @@
         // ── AS send + RP result ───────────────────────────────────────────────────
         var asSend = {
           request_id: reqId,
-          data: JSON.stringify(
-            tokenCalls.map(function (_, i) {
-              return "<consent_token_JWT_" + (i + 1) + ">";
-            }),
-          ),
+          data: JSON.stringify(consentTokenJwts),
         };
         var ydStatusCb = {
           node_id: "rp1",
@@ -3511,18 +4091,18 @@
           requester_node_id: "rp1",
           as_node_id: asId,
           request_id: reqId,
-          request_timeout: 900,
+          request_timeout: 180,
           status: "completed",
           timed_out: false,
         };
         var rpResult = {
           source_node_id: asId,
           service_id: "900.complete_consent_001",
-          data: JSON.stringify(
-            tokenCalls.map(function (_, i) {
-              return "<consent_token_JWT_" + (i + 1) + ">";
-            }),
-          ),
+          source_signature: "<base64-signature>",
+          signature_signing_algorithm: "RSASSA_PKCS1_V1_5_SHA_256",
+          signature_signing_key_version: 1,
+          data_salt: "<salt>",
+          data: JSON.stringify(consentTokenJwts),
         };
 
         // ── Mini swimlane (4 rows) ────────────────────────────────────────────────
@@ -3552,7 +4132,11 @@
                   svcsForDs.length +
                   " service" +
                   (svcsForDs.length !== 1 ? "s" : ""),
-                html: cjb(ydReq, "Request body"),
+                html:
+                  cjb(ydReq, "Request body") +
+                  note(
+                    "Max 5 accounts per dataset per complete-consent call -- more than 5 selected accounts gets error 40400 (Invalid data) from the AS.",
+                  ),
               },
             },
           },
@@ -3570,7 +4154,11 @@
                   " consent_token" +
                   (totalTokens > 1 ? "s" : ""),
                 html:
-                  cjb(asCb, "yourdata.data_request callback") + tokenBlocksHtml,
+                  cjb(asCb, "yourdata.data_request callback") +
+                  note(
+                    "SLA: the AS must respond (create the consent_token(s) and send them back) within 150 seconds of receiving this callback.",
+                  ) +
+                  tokenBlocksHtml,
               },
             },
           },
@@ -3644,67 +4232,357 @@
       // range; Card Payment transactions use a plain date range with different field
       // names; Card Payment balance/scheduled/statement and Loan statement each take
       // a single date, not a range; Accounts/Balances-only endpoints take no date.
+      //
+      // Transactions (Deposit/e-Money/Card Payment) and Statement (Deposit/
+      // e-Money) each split into 4 service_ids (basic/detail x 6/12-month
+      // lookback -- see NDID_YourData_ServiceID-additional.xlsx). The
+      // date range demoed for a _002 (12-month) service_id deliberately reaches
+      // further back than a _001 (6-month) one would allow, to show why you'd
+      // pick the 12-month variant -- Basic vs Detail never affects the request
+      // params, only the response fields, so both share the same range per tier.
+      function bookingRangeParams(months) {
+        return months === 12
+          ? {
+              fromBookingDateTime: "2025-09-01T00:00:00+07:00",
+              toBookingDateTime: "2026-03-31T23:59:59+07:00",
+              language: "EN",
+            }
+          : {
+              fromBookingDateTime: "2026-01-01T00:00:00+07:00",
+              toBookingDateTime: "2026-03-31T23:59:59+07:00",
+              language: "EN",
+            };
+      }
+      function transactionDateRangeParams(months) {
+        return months === 12
+          ? {
+              fromTransactionDate: "2025-09-01",
+              toTransactionDate: "2026-03-31",
+              language: "EN",
+            }
+          : {
+              fromTransactionDate: "2026-01-01",
+              toTransactionDate: "2026-03-31",
+              language: "EN",
+            };
+      }
       var REQ_PARAMS_BUILDERS = {
-        "900.deposit_transactions_001": function () {
-          return {
-            fromBookingDateTime: "2026-01-01T00:00:00+07:00",
-            toBookingDateTime: "2026-03-31T23:59:59+07:00",
-            language: "TH",
-          };
+        "900.deposit_transactions_basic_001": function () {
+          return bookingRangeParams(6);
         },
-        "900.deposit_statement_001": function () {
-          return {
-            fromBookingDateTime: "2026-01-01T00:00:00+07:00",
-            toBookingDateTime: "2026-03-31T23:59:59+07:00",
-            language: "TH",
-          };
+        "900.deposit_transactions_basic_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.deposit_transactions_detail_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.deposit_transactions_detail_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.deposit_statement_basic_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.deposit_statement_basic_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.deposit_statement_detail_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.deposit_statement_detail_002": function () {
+          return bookingRangeParams(12);
         },
         "900.cardpayment_outstandingbalance_001": function () {
-          return { toTransactionDate: "2026-03-31T00:00:00+07:00", language: "TH" };
+          return { language: "EN" };
         },
-        "900.cardpayment_transactions_001": function () {
-          return {
-            fromTransactionDate: "2026-01-01",
-            toTransactionDate: "2026-03-31",
-            language: "TH",
-          };
+        "900.cardpayment_transactions_basic_001": function () {
+          return transactionDateRangeParams(6);
+        },
+        "900.cardpayment_transactions_basic_002": function () {
+          return transactionDateRangeParams(12);
+        },
+        "900.cardpayment_transactions_detail_001": function () {
+          return transactionDateRangeParams(6);
+        },
+        "900.cardpayment_transactions_detail_002": function () {
+          return transactionDateRangeParams(12);
         },
         "900.cardpayment_scheduledpayment_001": function () {
-          return { statementDate: "2026-06-05", language: "TH" };
+          return { statementDate: "2026-06", language: "EN" };
         },
         "900.cardpayment_statement_001": function () {
-          return { statementDate: "2026-06-05", language: "TH" };
+          return { statementDate: "2026-06", language: "EN" };
         },
         "900.loan_statement_001": function () {
-          return { billDate: "2026-06-01", language: "TH" };
+          return { billDate: "2026-06", language: "EN" };
         },
-        "900.emoney_transactions_001": function () {
-          return {
-            fromBookingDateTime: "2026-01-01T00:00:00+07:00",
-            toBookingDateTime: "2026-03-31T23:59:59+07:00",
-            language: "TH",
-          };
+        "900.emoney_transactions_basic_001": function () {
+          return bookingRangeParams(6);
         },
-        "900.emoney_statement_001": function () {
-          return {
-            fromBookingDateTime: "2026-01-01T00:00:00+07:00",
-            toBookingDateTime: "2026-03-31T23:59:59+07:00",
-            language: "TH",
-          };
+        "900.emoney_transactions_basic_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.emoney_transactions_detail_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.emoney_transactions_detail_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.emoney_statement_basic_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.emoney_statement_basic_002": function () {
+          return bookingRangeParams(12);
+        },
+        "900.emoney_statement_detail_001": function () {
+          return bookingRangeParams(6);
+        },
+        "900.emoney_statement_detail_002": function () {
+          return bookingRangeParams(12);
         },
       };
 
       function buildReqParams(svcId) {
         var builder = REQ_PARAMS_BUILDERS[svcId];
-        return builder ? builder() : { language: "TH" };
+        return builder ? builder() : { language: "EN" };
       }
 
       // Mock response bodies keyed by service_id -- field names verified against the
       // real YourData_Schema_* OpenAPI specs (SwaggerHub NDID/YourData_Schema_
-      // {Deposit,EMoney,CardPayment,Loan} v0.5.0), not invented. Builders take
-      // hasDetailExt to add the extra fields present in the *_detail service_extension
-      // (only meaningful for Transactions everywhere, and Statements for Deposit/
-      // e-Money -- those are the only endpoints with a real Basic/Detail split).
+      // {Deposit,EMoney,CardPayment,Loan} -- all four re-verified against v1.0.1,
+      // 27 Aug 2026), not invented. Deposit's and
+      // e-Money's transaction/statement entries nest domainCode/familyCode/
+      // subFamilyCode under a required commonTransactionCode object per v1.0.1
+      // (previously flat). e-Money's Balance response (and Statement header) wrap
+      // lastLedgerBalanceAmount/lastLedgerBalanceCurrency in a required
+      // balanceInfo array per v1.0.1 (previously flat top-level fields).
+      //
+      // Basic vs Detail is now a hasDetail param baked in by which service_id's
+      // wrapper called it below (Basic/Detail is a service_id choice, not a
+      // service_extension) -- Lookback (_001 = 6mo / _002 = 12mo) never
+      // changes the response SHAPE, only which fromDate range the AS accepts
+      // (see Step 4's business-level validation), so both lookback tiers for a
+      // given Basic/Detail share the same mock generator.
+      function depositTransactionsMock(hasDetail) {
+        var entries = [
+          {
+            transactionId: "TXN-A-001",
+            bookingDateTime: "2026-06-01T00:00:00+07:00",
+            valueDateTime: "2026-06-01T00:00:00+07:00",
+            commonTransactionCode: {
+              domainCode: "PMNT",
+              familyCode: "RCDT",
+              subFamilyCode: "SALA",
+            },
+            proprietaryBankTransactionCode: "TW",
+            proprietaryBankTransactionDescription: "Transfer in",
+            creditDebitIndicator: "CRDT",
+            amount: 5000,
+            amountCurrency: "THB",
+            // subAccountLevelMaturityDate is conditional -- only meaningful when
+            // accountSubType is TERM; omitted here since this account is SAVINGS.
+          },
+          {
+            transactionId: "TXN-A-002",
+            bookingDateTime: "2026-06-10T00:00:00+07:00",
+            valueDateTime: "2026-06-10T00:00:00+07:00",
+            commonTransactionCode: {
+              domainCode: "PMNT",
+              familyCode: "MDOP",
+              subFamilyCode: "RPMT",
+            },
+            proprietaryBankTransactionCode: "BP",
+            proprietaryBankTransactionDescription: "Bill payment",
+            creditDebitIndicator: "DBIT",
+            amount: 1200,
+            amountCurrency: "THB",
+          },
+        ];
+        if (hasDetail) {
+          // CRDT entry: this account is the creditor/receiver; the external
+          // payer is the debtor/sending side.
+          entries[0].transactionRef = "REF-0001";
+          entries[0].transactionInformation = "Salary payment";
+          entries[0].debtorAccountId = "111-222-3333";
+          entries[0].debtorAccountName = "ABC COMPANY LTD";
+          entries[0].creditorAccountId = "123-456-1234";
+          entries[0].creditorAccountName = "Mr. Somchai Jaidee";
+          entries[0].sendingInstitutionCode = "XYZB";
+          entries[0].sendingInstitutionName = "XYZ Bank";
+          entries[0].receivingInstitutionCode = "ABCB";
+          entries[0].receivingInstitutionName = "ABC Bank";
+          entries[0].merchantName = "";
+          // DBIT entry: this account is the debtor/sender; the external payee
+          // is the creditor/receiving side.
+          entries[1].transactionRef = "REF-0002";
+          entries[1].transactionInformation = "Utilities";
+          entries[1].debtorAccountId = "123-456-1234";
+          entries[1].debtorAccountName = "Mr. Somchai Jaidee";
+          entries[1].creditorAccountId = "444-555-6666";
+          entries[1].creditorAccountName = "KASIKORN BANK";
+          entries[1].sendingInstitutionCode = "ABCB";
+          entries[1].sendingInstitutionName = "ABC Bank";
+          entries[1].receivingInstitutionCode = "KBNK";
+          entries[1].receivingInstitutionName = "Kasikorn Bank";
+          entries[1].merchantName = "MEA - Electricity Bill";
+        }
+        return { accountId: "123-456-1234", statementEntries: entries };
+      }
+      function depositStatementMock(hasDetail) {
+        var entry = {
+          transactionId: "TXN-A-001",
+          bookingDateTime: "2026-06-01T00:00:00+07:00",
+          commonTransactionCode: {
+            domainCode: "PMNT",
+            familyCode: "RCDT",
+            subFamilyCode: "SALA",
+          },
+          proprietaryBankTransactionCode: "TW",
+          proprietaryBankTransactionDescription: "Transfer in",
+          creditDebitIndicator: "CRDT",
+          amount: 5000,
+          amountCurrency: "THB",
+          balance: 85000.5,
+          balanceCurrency: "THB",
+          originCode: "BR001",
+          originDescription: "Branch teller",
+          processingBranchCode: "BR001",
+          processingBranchDescription: "Silom Branch",
+        };
+        if (hasDetail) {
+          entry.transactionRef = "REF-0001";
+          entry.transactionInformation = "Salary payment";
+          entry.debtorAccountId = "111-222-3333";
+          entry.debtorAccountName = "ABC COMPANY LTD";
+          entry.creditorAccountId = "123-456-1234";
+          entry.creditorAccountName = "Mr. Somchai Jaidee";
+          entry.sendingInstitutionCode = "XYZB";
+          entry.sendingInstitutionName = "XYZ Bank";
+          entry.receivingInstitutionCode = "ABCB";
+          entry.receivingInstitutionName = "ABC Bank";
+          entry.merchantName = "";
+        }
+        return {
+          creationDateTime: "2026-07-01T00:00:00+07:00",
+          statementId: "STMT-2026-06",
+          institutionName: "ABCB",
+          accountId: "123-456-1234",
+          ownerType: "INDIVIDUAL",
+          accountType: "DEPOSIT",
+          accountSubType: "SAVINGS",
+          accountStatus: "ACTIVE",
+          accountName: "Mr. Somchai Jaidee",
+          accountOwner: "SINGLE",
+          openingDate: "2020-01-01T00:00:00+07:00",
+          auxiliaryReferenceId: "",
+          homeBranch: "Silom Branch",
+          // accountLevelMaturityDate is conditional -- only meaningful for TERM
+          // (fixed deposit) accounts; omitted here since this account is SAVINGS.
+          lastLedgerBalanceAmount: 85000.5,
+          lastLedgerBalanceCurrency: "THB",
+          lastAvailableBalanceAmount: 85000.5,
+          lastAvailableBalanceCurrency: "THB",
+          creditLimit: 50000,
+          statementDescription: "Monthly savings account statement",
+          startDateTime: "2026-06-01T00:00:00+07:00",
+          endDateTime: "2026-06-30T23:59:59+07:00",
+          numberofTotalItems: 1,
+          statementEntries: [entry],
+        };
+      }
+      function cardpaymentTransactionsMock(hasDetail) {
+        var t = [
+          {
+            transactionId: "CC-001",
+            transactionDate: "2026-05-03",
+            postingDate: "2026-05-04",
+            creditDebitIndicator: "DBIT",
+            amount: 3500,
+            amountCurrency: "THB",
+            transactionType: "SPENDING",
+            merchantCategoryCode: "5311",
+          },
+          {
+            transactionId: "CC-002",
+            transactionDate: "2026-05-07",
+            postingDate: "2026-05-08",
+            creditDebitIndicator: "DBIT",
+            amount: 320,
+            amountCurrency: "THB",
+            transactionType: "SPENDING",
+            merchantCategoryCode: "5812",
+          },
+        ];
+        if (hasDetail) {
+          t[0].transactionDescription = "CENTRAL WORLD";
+          t[1].transactionDescription = "GRAB FOOD";
+        }
+        return {
+          cardNumber: "XXXX-XXXX-XXXX-1111",
+          transactionEntries: t,
+          auxiliaryReferenceId: "aux-cardpayment-transactions-001",
+        };
+      }
+      function emoneyTransactionsMock(hasDetail) {
+        var entry = {
+          transactionId: "EM-001",
+          bookingDateTime: "2026-06-01T00:00:00+07:00",
+          commonTransactionCode: {
+            domainCode: "PMNT",
+            familyCode: "MDOP",
+            subFamilyCode: "RPMT",
+          },
+          proprietaryeWalletTransactionCode: "PAY",
+          proprietaryeWalletTransactionDescription: "Bill payment",
+          creditDebitIndicator: "DBIT",
+          amount: 200,
+          amountCurrency: "THB",
+        };
+        if (hasDetail) entry.transactionInformation = "Bill payment - utilities";
+        return { eWalletId: "XXX-XXX-0010", transactionEntries: [entry] };
+      }
+      function emoneyStatementMock(hasDetail) {
+        var entry = {
+          transactionId: "EM-001",
+          bookingDateTime: "2026-06-01T00:00:00+07:00",
+          commonTransactionCode: {
+            domainCode: "PMNT",
+            familyCode: "MDOP",
+            subFamilyCode: "RPMT",
+          },
+          proprietaryeWalletTransactionCode: "PAY",
+          proprietaryeWalletTransactionDescription: "Bill payment",
+          creditDebitIndicator: "DBIT",
+          amount: 200,
+          amountCurrency: "THB",
+          balance: 1500,
+          balanceCurrency: "THB",
+          originCode: "APP01",
+          originDescription: "Mobile app",
+        };
+        if (hasDetail) entry.transactionInformation = "Bill payment - utilities";
+        return {
+          creationDateTime: "2026-07-01T00:00:00+07:00",
+          statementId: "STMT-2026-06",
+          institutionName: "ABCB",
+          eWalletId: "XXX-XXX-0010",
+          nickName: "My Prepaid Wallet",
+          ownerType: "INDIVIDUAL",
+          accountStatus: "ACTIVE",
+          accountName: "Mr. Somchai Jaidee",
+          accountOwner: "SINGLE",
+          openingDate: "2023-01-01T00:00:00+07:00",
+          balanceInfo: [
+            {
+              lastLedgerBalanceAmount: 1500,
+              lastLedgerBalanceCurrency: "THB",
+            },
+          ],
+          startDateTime: "2026-06-01T00:00:00+07:00",
+          endDateTime: "2026-06-30T23:59:59+07:00",
+          numberofTotalItems: 1,
+          statementEntries: [entry],
+        };
+      }
       var MOCK_DATA_BUILDERS = {
         "900.deposit_account_001": function () {
           return {
@@ -3717,6 +4595,8 @@
             accountName: "Mr. Somchai Jaidee",
             accountOwner: "SINGLE",
             openingDate: "2020-01-01T00:00:00+07:00",
+            auxiliaryReferenceId: "",
+            homeBranch: "Silom Branch",
           };
         },
         "900.deposit_balance_001": function () {
@@ -3727,89 +4607,36 @@
             lastAvailableBalanceAmount: 85000.5,
             lastAvailableBalanceCurrency: "THB",
             creditLimit: 50000,
+            auxiliaryReferenceId: "",
           };
         },
-        "900.deposit_transactions_001": function (hasDetailExt) {
-          var entries = [
-            {
-              transactionId: "TXN-A-001",
-              bookingDateTime: "2026-06-01T00:00:00+07:00",
-              domainCode: "PMNT",
-              familyCode: "RCDT",
-              subFamilyCode: "SALA",
-              proprietaryBankTransactionCode: "TW",
-              proprietaryBankTransactionDescription: "Transfer in",
-              creditDebitIndicator: "CRDT",
-              amount: 5000,
-              amountCurrency: "THB",
-            },
-            {
-              transactionId: "TXN-A-002",
-              bookingDateTime: "2026-06-10T00:00:00+07:00",
-              domainCode: "PMNT",
-              familyCode: "MDOP",
-              subFamilyCode: "RPMT",
-              proprietaryBankTransactionCode: "BP",
-              proprietaryBankTransactionDescription: "Bill payment",
-              creditDebitIndicator: "DBIT",
-              amount: 1200,
-              amountCurrency: "THB",
-            },
-          ];
-          if (hasDetailExt) {
-            entries[0].transactionRef = "REF-0001";
-            entries[0].transactionInformation = "Salary payment";
-            entries[0].debtorAccountId = "111-222-3333";
-            entries[0].debtorAccountName = "ABC COMPANY LTD";
-            entries[1].transactionInformation = "Utilities";
-            entries[1].creditorAccountName = "KASIKORN BANK";
-          }
-          return { accountId: "123-456-1234", statementEntries: entries };
+        "900.deposit_transactions_basic_001": function () {
+          return depositTransactionsMock(false);
         },
-        "900.deposit_statement_001": function (hasDetailExt) {
-          var entry = {
-            transactionId: "TXN-A-001",
-            bookingDateTime: "2026-06-01T00:00:00+07:00",
-            domainCode: "PMNT",
-            familyCode: "RCDT",
-            subFamilyCode: "SALA",
-            proprietaryBankTransactionCode: "TW",
-            proprietaryBankTransactionDescription: "Transfer in",
-            creditDebitIndicator: "CRDT",
-            amount: 5000,
-            amountCurrency: "THB",
-            balance: 85000.5,
-            balanceCurrency: "THB",
-            originCode: "BR001",
-            originDescription: "Branch teller",
-          };
-          if (hasDetailExt) {
-            entry.transactionRef = "REF-0001";
-            entry.transactionInformation = "Salary payment";
-          }
-          return {
-            creationDateTime: "2026-07-01T00:00:00+07:00",
-            statementId: "STMT-2026-06",
-            institutionName: "ABCB",
-            accountId: "123-456-1234",
-            ownerType: "INDIVIDUAL",
-            accountType: "DEPOSIT",
-            accountSubType: "SAVINGS",
-            accountStatus: "ACTIVE",
-            accountName: "Mr. Somchai Jaidee",
-            accountOwner: "SINGLE",
-            openingDate: "2020-01-01T00:00:00+07:00",
-            lastLedgerBalanceAmount: 85000.5,
-            lastLedgerBalanceCurrency: "THB",
-            startDateTime: "2026-06-01T00:00:00+07:00",
-            endDateTime: "2026-06-30T23:59:59+07:00",
-            numberofTotalItems: 1,
-            statementEntries: [entry],
-          };
+        "900.deposit_transactions_basic_002": function () {
+          return depositTransactionsMock(false);
+        },
+        "900.deposit_transactions_detail_001": function () {
+          return depositTransactionsMock(true);
+        },
+        "900.deposit_transactions_detail_002": function () {
+          return depositTransactionsMock(true);
+        },
+        "900.deposit_statement_basic_001": function () {
+          return depositStatementMock(false);
+        },
+        "900.deposit_statement_basic_002": function () {
+          return depositStatementMock(false);
+        },
+        "900.deposit_statement_detail_001": function () {
+          return depositStatementMock(true);
+        },
+        "900.deposit_statement_detail_002": function () {
+          return depositStatementMock(true);
         },
         "900.cardpayment_account_001": function () {
           return {
-            cardNumber: "****-****-****-1111",
+            cardNumber: "XXXX-XXXX-XXXX-1111",
             cardName: "Mr. Somchai Jaidee",
             cardType: "CREDIT",
             issuerName: "ABCB",
@@ -3818,12 +4645,13 @@
             ownerType: "INDIVIDUAL",
             cardStatus: "ACTIVE",
             isPrimary: true,
+            auxiliaryReferenceId: "aux-cardpayment-account-001",
           };
         },
         "900.cardpayment_outstandingbalance_001": function () {
           return {
-            cardNumber: "****-****-****-1111",
-            cardInfo: [
+            cardNumber: "XXXX-XXXX-XXXX-1111",
+            creditInfo: [
               {
                 creditLimitAmount: 100000,
                 creditLimitCurrency: "THB",
@@ -3833,96 +4661,96 @@
                 outstandingBalanceCurrency: "THB",
               },
             ],
+            auxiliaryReferenceId: "aux-cardpayment-outstandingbalance-001",
           };
         },
-        "900.cardpayment_transactions_001": function (hasDetailExt) {
-          var t = [
-            {
-              transactionId: "CC-001",
-              transactionDate: "2026-05-03",
-              creditDebitIndicator: "DBIT",
-              amount: 3500,
-              amountCurrency: "THB",
-              transactionType: "SPENDING",
-              marchantCategoryCode: "5311",
-            },
-            {
-              transactionId: "CC-002",
-              transactionDate: "2026-05-07",
-              creditDebitIndicator: "DBIT",
-              amount: 320,
-              amountCurrency: "THB",
-              transactionType: "SPENDING",
-              marchantCategoryCode: "5812",
-            },
-          ];
-          if (hasDetailExt) {
-            t[0].transactionDescription = "CENTRAL WORLD";
-            t[1].transactionDescription = "GRAB FOOD";
-          }
-          return { cardNumber: "****-****-****-1111", usageTransactions: t };
+        "900.cardpayment_transactions_basic_001": function () {
+          return cardpaymentTransactionsMock(false);
+        },
+        "900.cardpayment_transactions_basic_002": function () {
+          return cardpaymentTransactionsMock(false);
+        },
+        "900.cardpayment_transactions_detail_001": function () {
+          return cardpaymentTransactionsMock(true);
+        },
+        "900.cardpayment_transactions_detail_002": function () {
+          return cardpaymentTransactionsMock(true);
         },
         "900.cardpayment_scheduledpayment_001": function () {
           return {
-            cardNumber: "****-****-****-1111",
-            cardInfo: [
+            cardNumber: "XXXX-XXXX-XXXX-1111",
+            creditInfo: [
               {
-                creditLimitAmount: 100000,
-                creditLimitCurrency: "THB",
                 outstandingBalanceAmount: 12500,
                 outstandingBalanceCurrency: "THB",
+                minimumPaymentAmount: 625,
+                minimumPaymentCurrency: "THB",
+                interestRateBalanceAmount: 12500,
+                interestRateBalanceCurrency: "THB",
+                interestRate: 16.0,
               },
             ],
-            statementDate: "2026-06-05",
+            statementDate: "2026-06",
             statementDueDate: "2026-07-05",
+            auxiliaryReferenceId: "aux-cardpayment-scheduledpayment-001",
           };
         },
         "900.cardpayment_statement_001": function () {
           return {
-            cardNumber: "****-****-****-1111",
+            cardNumber: "XXXX-XXXX-XXXX-1111",
             cardName: "Mr. Somchai Jaidee",
             cardType: "CREDIT",
             issuerName: "ABCB",
             cardBrand: "VISA",
             productName: "ABCB Platinum",
             ownerType: "INDIVIDUAL",
-            cardInfo: [
+            creditInfo: [
               {
                 creditLimitAmount: 100000,
                 creditLimitCurrency: "THB",
+                availableCreditAmount: 87500,
+                availableCreditCurrency: "THB",
                 outstandingBalanceAmount: 12500,
                 outstandingBalanceCurrency: "THB",
+                minimumPaymentAmount: 625,
+                minimumPaymentCurrency: "THB",
+                interestRateBalanceAmount: 12500,
+                interestRateBalanceCurrency: "THB",
+                interestRate: 16.0,
               },
             ],
-            statementDate: "2026-06-05",
+            statementDate: "2026-06",
             statementDueDate: "2026-07-05",
             cardStatus: "ACTIVE",
             isPrimary: true,
-            paymentTransactions: [
+            statementEntries: [
               {
                 transactionDate: "2026-05-03",
+                postingDate: "2026-05-04",
                 creditDebitIndicator: "DBIT",
                 amount: 3500,
                 amountCurrency: "THB",
                 transactionType: "SPENDING",
                 transactionDescription: "CENTRAL WORLD",
-                marchantCategoryCode: "5311",
+                merchantCategoryCode: "5311",
+                installmentTerm: 0,
               },
             ],
+            auxiliaryReferenceId: "aux-cardpayment-statement-001",
           };
         },
         "900.loan_account_001": function () {
           return {
-            accountId: "***-***-9900",
+            accountId: "XXX-XXX-9900",
             accountName: "Mr. Somchai Jaidee",
-            institutionCode: "0004",
+            institutionCode: "0004000000000",
             institutionName: "ABCB",
             loanTypeCode: "2003200002",
             securedLoanFlag: 0,
             revolvingFlag: 0,
             accountStatusCode: "2001600001",
-            openingDate: "2024-01-01T00:00:00+07:00",
-            maturityDate: "2027-01-01T00:00:00+07:00",
+            openingDate: "2024-01-01",
+            maturityDate: "2027-01-01",
             contractAmount: 100000,
             contractAmountCurrency: "THB",
             totalNumberOfInstallment: 36,
@@ -3931,7 +4759,7 @@
         },
         "900.loan_outstandingbalance_001": function () {
           return {
-            accountId: "***-***-9900",
+            accountId: "XXX-XXX-9900",
             contractRemainingAmount: 72000,
             contractRemainingCurrency: "THB",
             outstandingBalanceAmount: 72000,
@@ -3943,25 +4771,26 @@
         },
         "900.loan_statement_001": function () {
           return {
-            accountId: "***-***-9900",
+            accountId: "XXX-XXX-9900",
             accountName: "Mr. Somchai Jaidee",
-            institutionCode: "0004",
+            institutionCode: "0004000000000",
             institutionName: "ABCB",
             loanTypeCode: "2003200002",
             securedLoanFlag: 0,
             revolvingFlag: 0,
             accountStatusCode: "2001600001",
-            openingDate: "2024-01-01T00:00:00+07:00",
-            maturityDate: "2027-01-01T00:00:00+07:00",
+            openingDate: "2024-01-01",
+            maturityDate: "2027-01-01",
             contractAmount: 100000,
             contractAmountCurrency: "THB",
             totalNumberOfInstallment: 36,
             installmentAmount: 3200,
-            lastPaymentDate: "2026-06-01T00:00:00+07:00",
+            lastPaymentDate: "2026-06-01",
             userDeclaredIncome: 50000,
             accountStatementTransactions: [
               {
-                billDate: "2026-06-01T00:00:00+07:00",
+                billDate: "2026-06",
+                duePayemntDate: "2026-06-05",
                 billAmount: 3200,
                 contractRemainingAmount: 72000,
                 contractRemainingCurrency: "THB",
@@ -3976,6 +4805,7 @@
                 minOSinMonth: 72000,
                 interestRate: 6.5,
                 interestAmount: 390,
+                dueInstallment: 10,
               },
             ],
           };
@@ -3983,7 +4813,7 @@
         "900.emoney_account_001": function () {
           return {
             institutionName: "ABCB",
-            eWalletId: "***-***-0010",
+            eWalletId: "XXX-XXX-0010",
             nickName: "My Prepaid Wallet",
             ownerType: "INDIVIDUAL",
             accountStatus: "ACTIVE",
@@ -3993,73 +4823,44 @@
         },
         "900.emoney_balance_001": function () {
           return {
-            eWalletId: "***-***-0010",
-            lastLedgerBalanceAmount: 1500,
-            lastLedgerBalanceCurrency: "THB",
+            eWalletId: "XXX-XXX-0010",
+            balanceInfo: [
+              {
+                lastLedgerBalanceAmount: 1500,
+                lastLedgerBalanceCurrency: "THB",
+              },
+            ],
           };
         },
-        "900.emoney_transactions_001": function (hasDetailExt) {
-          var entry = {
-            transactionId: "EM-001",
-            bookingDateTime: "2026-06-01T00:00:00+07:00",
-            domainCode: "PMNT",
-            familyCode: "MDOP",
-            subFamilyCode: "RPMT",
-            proprietaryeWalletTransactionCode: "PAY",
-            proprietaryeWalletTransactionDescription: "Bill payment",
-            creditDebitIndicator: "DBIT",
-            amount: 200,
-            amountCurrency: "THB",
-          };
-          if (hasDetailExt)
-            entry.transactionInformation = "Bill payment - utilities";
-          return { accountId: "***-***-0010", statementEntries: [entry] };
+        "900.emoney_transactions_basic_001": function () {
+          return emoneyTransactionsMock(false);
         },
-        "900.emoney_statement_001": function (hasDetailExt) {
-          var entry = {
-            transactionId: "EM-001",
-            bookingDateTime: "2026-06-01T00:00:00+07:00",
-            domainCode: "PMNT",
-            familyCode: "MDOP",
-            subFamilyCode: "RPMT",
-            proprietaryeWalletTransactionCode: "PAY",
-            proprietaryeWalletTransactionDescription: "Bill payment",
-            creditDebitIndicator: "DBIT",
-            amount: 200,
-            amountCurrency: "THB",
-            balance: 1500,
-            balanceCurrency: "THB",
-            originCode: "APP01",
-            originDescription: "Mobile app",
-          };
-          if (hasDetailExt)
-            entry.transactionInformation = "Bill payment - utilities";
-          return {
-            creationDateTime: "2026-07-01T00:00:00+07:00",
-            statementId: "STMT-2026-06",
-            institutionName: "ABCB",
-            eWalletId: "***-***-0010",
-            nickName: "My Prepaid Wallet",
-            ownerType: "INDIVIDUAL",
-            accountStatus: "ACTIVE",
-            accountName: "Mr. Somchai Jaidee",
-            accountOwner: "SINGLE",
-            openingDate: "2023-01-01T00:00:00+07:00",
-            lastLedgerBalanceAmount: 1500,
-            lastLedgerBalanceCurrency: "THB",
-            startDateTime: "2026-06-01T00:00:00+07:00",
-            endDateTime: "2026-06-30T23:59:59+07:00",
-            numberofTotalItems: 1,
-            statementEntries: [entry],
-          };
+        "900.emoney_transactions_basic_002": function () {
+          return emoneyTransactionsMock(false);
+        },
+        "900.emoney_transactions_detail_001": function () {
+          return emoneyTransactionsMock(true);
+        },
+        "900.emoney_transactions_detail_002": function () {
+          return emoneyTransactionsMock(true);
+        },
+        "900.emoney_statement_basic_001": function () {
+          return emoneyStatementMock(false);
+        },
+        "900.emoney_statement_basic_002": function () {
+          return emoneyStatementMock(false);
+        },
+        "900.emoney_statement_detail_001": function () {
+          return emoneyStatementMock(true);
+        },
+        "900.emoney_statement_detail_002": function () {
+          return emoneyStatementMock(true);
         },
       };
 
-      function buildMockData(svcId, hasDetailExt) {
+      function buildMockData(svcId) {
         var builder = MOCK_DATA_BUILDERS[svcId];
-        return builder
-          ? builder(hasDetailExt)
-          : { service_id: svcId, data: "<mock response>" };
+        return builder ? builder() : { service_id: svcId, data: "<mock response>" };
       }
 
       // ── Step 3: Request Data ──────────────────────────────────────────────────────
@@ -4074,8 +4875,8 @@
           );
         }
 
-        // Independently select AS, account, service_id and service_extension --
-        // each cascades: changing a parent re-derives/resets its children.
+        // Independently select AS, account, and service_id -- each cascades:
+        // changing a parent re-derives/resets its children.
         var resolved = resolveStep4Selectors();
         if (!resolved) {
           return (
@@ -4099,17 +4900,84 @@
         var firstAcc = resolved.activeAcc;
         var firstAs = firstAcc.asId;
         var svcId = resolved.activeSvc.service_id;
-        var svcExt = step4Sel.ext.slice();
 
         var reqParams = buildReqParams(svcId);
 
-        var tokenLabel =
-          "<consent_token for " +
-          esc(firstAcc.visible_identifier) +
-          " / " +
-          esc(svcId) +
-          (svcExt.length ? " [" + svcExt.join(",") + "]" : "") +
-          ">";
+        // Reconstruct the exact same consent_token payload created back in Step 3
+        // (per account x AS x usage_type) -- mockJwt() caches by payload content,
+        // so this resolves to the identical JWT string the AS issued there, rather
+        // than minting a new one.
+        var isOneTimeStep4 = cfg.ct === "one_time";
+        var realId4 = REAL_ACCOUNT_ID[firstAcc.identifier] || firstAcc.identifier;
+        var tokenReqSpend4 = {
+          requester_node_id: "rp1",
+          as_node_id: firstAs,
+          namespace: "citizen_id",
+          identifier: cfg.cid,
+          source_request_id_list: [
+            "req-pre-xxxx",
+            "req-cc-" + firstAcc.dataset + "-" + firstAs,
+          ],
+          token_objective: cfg.tokenObjective,
+          usage_type: cfg.ct,
+          validate_identifier: true,
+          validate_service_id: true,
+          validate_service_extension: true,
+          // Must mirror Step 3's service_id_list exactly so the reconstructed
+          // payload -- and therefore the cached mock JWT -- match the token
+          // the AS actually issued at complete-consent.
+          service_id_list: isOneTimeStep4
+            ? [resolved.activeSvc]
+            : resolved.svcOptions,
+          sub_identity_list: [
+            {
+              namespace: firstAcc.namespace,
+              identifier: realId4,
+              visible_identifier: firstAcc.visible_identifier,
+              identifier_extension: firstAcc.identifier_extension,
+            },
+          ],
+        };
+        if (cfg.ct === "continuous_with_expire") {
+          tokenReqSpend4.expiration_datetime =
+            cfg.expirationDatetime || 1750000000 + 90 * 24 * 60 * 60;
+        } else if (cfg.ct !== "continuous_no_expire") {
+          // one_time -- AS sets a 24-hour redemption window (must match Step 3
+          // exactly, see comment above).
+          tokenReqSpend4.expiration_datetime = 1750000000 + 24 * 60 * 60;
+        }
+        var consentTokenSeed4 =
+          "consent_token|" +
+          firstAcc.dataset +
+          "|" +
+          firstAs +
+          "|" +
+          firstAcc.identifier +
+          "|" +
+          (isOneTimeStep4 ? [resolved.activeSvc] : resolved.svcOptions)
+            .map(function (s) {
+              return s.service_id;
+            })
+            .sort()
+            .join(",");
+        var tokenLabel = mockJwt(
+          withServerGeneratedTokenFields(tokenReqSpend4, consentTokenSeed4),
+          {
+            Dataset: DS_LABEL[firstAcc.dataset] || firstAcc.dataset,
+            AS: (AS_NAME[firstAs] || firstAs) + " (" + firstAs + ")",
+            Account: firstAcc.visible_identifier,
+            "Service(s)": (isOneTimeStep4
+              ? [resolved.activeSvc]
+              : resolved.svcOptions
+            )
+              .map(function (s) {
+                return s.service_id;
+              })
+              .join(", "),
+            "Token type": "consent_token (real data-access token)",
+            usage_type: cfg.ct,
+          },
+        );
 
         var ydReq = {
           service_id: svcId,
@@ -4123,7 +4991,6 @@
           authorization: tokenLabel,
           request_timeout: 900,
         };
-        if (svcExt.length) ydReq.service_extension = svcExt;
 
         var asCb = {
           node_id: firstAs,
@@ -4139,12 +5006,8 @@
           request_time: 1750000000000,
           request_timeout: 900,
         };
-        if (svcExt.length) asCb.service_extension = svcExt;
 
-        var hasDetailExt = svcExt.some(function (e) {
-          return e.indexOf("detail") > -1;
-        });
-        var mockData = buildMockData(svcId, hasDetailExt);
+        var mockData = buildMockData(svcId);
 
         var asSend = {
           request_id: "req-data-xxxx",
@@ -4163,6 +5026,10 @@
         var rpResult = {
           source_node_id: firstAs,
           service_id: svcId,
+          source_signature: "<base64-signature>",
+          signature_signing_algorithm: "RSASSA_PKCS1_V1_5_SHA_256",
+          signature_signing_key_version: 1,
+          data_salt: "<salt>",
           data: JSON.stringify(mockData),
         };
 
@@ -4183,8 +5050,7 @@
                   "Data request -- account: " +
                   esc(firstAcc ? firstAcc.visible_identifier : "") +
                   ", svc: " +
-                  esc(svcId) +
-                  (svcExt.length ? " [" + svcExt[0] + "]" : ""),
+                  esc(svcId),
                 html: cjb(ydReq, "YourData API Request"),
               },
             },
@@ -4211,12 +5077,19 @@
                       "Only after all of this passes does the platform invoke your service_url with the callback body below -- by the time your app code runs, the caller, token, and requested service/namespace/extension are already known-good. Everything below is optional business logic on top of that -- NDID doesn't require or track any of it.",
                   ) +
                   cjb(asCb, "AS data_request Callback") +
+                  note(
+                    "SLA: the AS must respond (steps below) within 5 minutes of receiving this callback. RP-side, request_timeout for this call is chosen from a 5-15 minute range (300-900 seconds) -- long enough to cover real data retrieval, unlike pre-consent's near-instant 5-second SLA.",
+                  ) +
                   lbl("Business-level validation (your application's responsibility)") +
                   rb(
-                    "1. revokedTokens.has(token)     -> error 40720\n2. one_time already used         -> error 40730\n3. maxLookbackDays = lookback_12_months in service_extension ? 365\n                   : lookback_6_months in service_extension  ? 180\n                   : <TBD -- default range when no lookback_* extension present>\n   (toDate - fromDate) > maxLookbackDays -> error 40710\n4. tokenAccountMap.get(token)    -> account\n5. Build response per dataset schema\n6. responseSize > platform's size limit -> error 40780",
+                    "1. revokedTokens.has(token)     -> error 40720\n2. one_time already used         -> error 40730\n3. maxLookbackDate = service_id ends with _001 ? 1st of the month 6 months back\n                    : service_id ends with _002 ? 1st of the month 12 months back\n                    : <no lookback restriction -- service_id has no Basic/Detail+Lookback split at all, e.g. Account/Balance>\n   fromDate/toDate missing, or fromDate < maxLookbackDate, or toDate > today -> error 40710\n   otherwise -> return data for [fromDate,toDate], best effort (may round out to whole months if exact day-level data isn't available, or send less than requested if the AS doesn't retain data that far back -- e.g. requested 13 Feb-13 Jul may come back as 1 Feb-31 Jul)\n4. tokenAccountMap.get(token)    -> account\n5. Build response per dataset schema\n6. responseSize > platform's size limit -> error 40780",
                   ) +
                   note(
-                    "The permitted date range comes from the lookback_6_months/lookback_12_months service_extension embedded in the consent_token -- not a fixed constant. The default range when no lookback extension is present is still TBD, pending more data.",
+                    "maxLookbackDate rounds DOWN to the 1st of the month -- not an exact-day subtraction. E.g. requesting a _001 (6-month) service_id on 2026-08-13: maxLookbackDate = 2026-02-01 (not 2026-02-13).<br><br>" +
+                      "Both endpoints are checked independently, and either one being out of range rejects the whole request: fromDate earlier than maxLookbackDate -> error 40710, and toDate later than today -> error 40710. There's no partial-range fallback here -- the request only proceeds once both fromDate and toDate are within range. 'Best effort' applies AFTER that check passes, to how precisely the AS can fulfil an already-valid request: it may round out to whole months instead of exact days, or send less history than requested if it doesn't actually retain data all the way back to maxLookbackDate (common for a 12-month/_002 request) -- e.g. a valid request for 13 Feb to 13 Jul can come back covering 1 Feb to 31 Jul.",
+                  ) +
+                  note(
+                    "Which lookback tier applies is no longer a service_extension value carried inside the consent_token -- it's baked directly into which service_id the RP requested. 900.deposit_transactions_basic_001 IS the 6-month variant; 900.deposit_transactions_basic_002 IS the 12-month variant. There's no separate lookback choice to resolve or default at pre-consent anymore -- the RP either included the service_id it wanted, or it didn't (see NDID_YourData_ServiceID-additional.xlsx).",
                   ) +
                   lbl("AS sends: POST /v7/yourdata/as/data") +
                   cjb(asSend, "AS Send Data (POST /as/data)"),
@@ -4279,7 +5152,7 @@
                   cjb(
                     {
                       node_id: "rp1",
-                      type: "yourdata.request_status",
+                      type: "yourdata.data_decryption_key_retry_request_status",
                       requester_node_id: "rp1",
                       as_node_id: firstAs,
                       request_id: "req-data-xxxx",
@@ -4287,7 +5160,7 @@
                       status: "completed",
                       timed_out: false,
                     },
-                    "yourdata.request_status Callback (retry result)",
+                    "yourdata.data_decryption_key_retry_request_status Callback (retry result)",
                   ) +
                   lbl(
                     "RP retrieves the data the same way as before:",
@@ -4359,7 +5232,7 @@
           var fallbackAs = allActiveAs()[0] || "as1";
           revokeTokens.push({
             asId: fallbackAs,
-            tokenId: "<token_id for ***-***-1234>",
+            tokenId: "<token_id for XXX-XXX-1234>",
           });
         }
         var revokeTokenIds = revokeTokens.map(function (t) {
@@ -4373,7 +5246,8 @@
         });
 
         var ndidReq = {
-          mode: 3,
+          mode: 2,
+          request_type: "AuthenOnly",
           reference_id: "revoke-1750000000003",
           idp_id_list: [cfg.idp],
           callback_url: "http://rp-cb:6001/rp/request/revoke-xxx",
@@ -4389,7 +5263,7 @@
           request_message:
             "Please approve revoking your consent (REF: revoke-xxx)",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           min_idp: 1,
           request_timeout: 86400,
         };
@@ -4401,7 +5275,7 @@
         var idpIncoming = {
           node_id: cfg.idp,
           type: "incoming_request",
-          mode: 3,
+          mode: 2,
           request_id: "req-revoke-xxxx",
           reference_group_code: "rg-xxxx",
           request_message: "Please approve revoking your consent (REF: revoke-xxx)",
@@ -4409,7 +5283,7 @@
           request_message_salt: "<salt>",
           requester_node_id: "rp1",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           data_request_list: [
             {
               service_id: "900.revoke_consent_001",
@@ -4418,6 +5292,7 @@
             },
           ],
           initial_salt: "<salt>",
+          request_type: ndidReq.request_type,
           creation_time: 1750000000000,
           creation_block_height: "12345:2",
           request_timeout: 86400,
@@ -4427,7 +5302,7 @@
           callback_url: "http://idp-cb:6000/idp/response_result",
           request_id: "req-revoke-xxxx",
           ial: 2.3,
-          aal: 2.2,
+          aal: 2.1,
           status: "accept",
           accessor_id: "acc-xxxx",
           signature: "<base64-rsa-sig>",
@@ -4455,7 +5330,7 @@
             node_id: asId,
             type: "data_request",
             request_id: "req-revoke-xxxx",
-            mode: 3,
+            mode: 2,
             namespace: "citizen_id",
             identifier: cfg.cid,
             service_id: "900.revoke_consent_001",
@@ -4463,7 +5338,8 @@
             request_params: JSON.stringify(revokeTokenIds),
             response_signature_list: ["<base64-signature>"],
             max_ial: 2.3,
-            max_aal: 2.2,
+            max_aal: 2.1,
+            request_type: ndidReq.request_type,
             creation_time: 1750000000000,
             creation_block_height: "12345:2",
             request_timeout: 86400,
@@ -4524,10 +5400,10 @@
           type: "request_status",
           request_id: "req-revoke-xxxx",
           requester_node_id: "rp1",
-          mode: 3,
+          mode: 2,
           request_message_hash: "<sha256-hash>",
           min_ial: 2.3,
-          min_aal: 2.2,
+          min_aal: 2.1,
           min_idp: 1,
           idp_id_list: [cfg.idp],
           response_list: [
@@ -4542,6 +5418,7 @@
               }),
             },
           ],
+          request_type: ndidReq.request_type,
           request_timeout: 86400,
           status: "completed",
           closed: true,
@@ -4699,19 +5576,87 @@
           ["900.deposit_account_001", "Deposit account info", "YourData API"],
           ["900.deposit_balance_001", "Deposit balance", "YourData API"],
           [
-            "900.deposit_transactions_001",
-            "Deposit transactions",
+            "900.deposit_transactions_basic_001",
+            "Deposit transactions -- Basic, 6 months",
             "YourData API",
           ],
-          ["900.deposit_statement_001", "Deposit statement", "YourData API"],
+          [
+            "900.deposit_transactions_basic_002",
+            "Deposit transactions -- Basic, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_transactions_detail_001",
+            "Deposit transactions -- Detail, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_transactions_detail_002",
+            "Deposit transactions -- Detail, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_statement_basic_001",
+            "Deposit statement -- Basic, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_statement_basic_002",
+            "Deposit statement -- Basic, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_statement_detail_001",
+            "Deposit statement -- Detail, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.deposit_statement_detail_002",
+            "Deposit statement -- Detail, 12 months",
+            "YourData API",
+          ],
           ["900.emoney_account_001", "e-Money account info", "YourData API"],
           ["900.emoney_balance_001", "e-Money balance", "YourData API"],
           [
-            "900.emoney_transactions_001",
-            "e-Money transactions",
+            "900.emoney_transactions_basic_001",
+            "e-Money transactions -- Basic, 6 months",
             "YourData API",
           ],
-          ["900.emoney_statement_001", "e-Money statement", "YourData API"],
+          [
+            "900.emoney_transactions_basic_002",
+            "e-Money transactions -- Basic, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_transactions_detail_001",
+            "e-Money transactions -- Detail, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_transactions_detail_002",
+            "e-Money transactions -- Detail, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_statement_basic_001",
+            "e-Money statement -- Basic, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_statement_basic_002",
+            "e-Money statement -- Basic, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_statement_detail_001",
+            "e-Money statement -- Detail, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.emoney_statement_detail_002",
+            "e-Money statement -- Detail, 12 months",
+            "YourData API",
+          ],
           [
             "900.cardpayment_account_001",
             "Card payment account info",
@@ -4723,8 +5668,23 @@
             "YourData API",
           ],
           [
-            "900.cardpayment_transactions_001",
-            "Card payment transactions",
+            "900.cardpayment_transactions_basic_001",
+            "Card payment transactions -- Basic, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.cardpayment_transactions_basic_002",
+            "Card payment transactions -- Basic, 12 months",
+            "YourData API",
+          ],
+          [
+            "900.cardpayment_transactions_detail_001",
+            "Card payment transactions -- Detail, 6 months",
+            "YourData API",
+          ],
+          [
+            "900.cardpayment_transactions_detail_002",
+            "Card payment transactions -- Detail, 12 months",
             "YourData API",
           ],
           [
@@ -4749,7 +5709,11 @@
         var errRows = [
           ["40000", "Unknown Error", "AS application"],
           ["40100", "No Data", "AS application"],
-          ["40400", "Invalid data / params", "AS application"],
+          [
+            "40400",
+            "Invalid data / params (e.g. empty account selection, more than 5 accounts selected per dataset at complete-consent, bad date range)",
+            "AS application",
+          ],
           ["40710", "Date Range Exceeds Permission", "AS application"],
           ["40720", "Consent Token Revoked", "AS application"],
           ["40730", "One-Time Token Already Used", "AS application"],
@@ -4805,24 +5769,43 @@
             "<code>request_timeout</code> is <b>per-call, not cumulative</b>. Every step that carries a request_timeout (pre-consent, complete-consent, request-data) times out independently -- it is not a shared budget across the end-to-end flow. A slow complete-consent call does not eat into the request-data step's timeout, and vice versa. Set each request_timeout based on how long that specific step realistically needs.",
           ) +
           '<hr class="sdiv">' +
+          topicHead("<b>Request Timeouts &amp; SLAs</b>") +
+          '<table class="tbl"><thead><tr><th>Flow</th><th>RP <code>request_timeout</code></th><th>AS response SLA</th><th>Token issued</th><th>Token expiration</th></tr></thead><tbody>' +
+          "<tr><td>Pre-consent</td><td>5 min (300s)</td><td>Within 5 seconds</td><td><code>as_token</code></td><td>15 minutes</td></tr>" +
+          "<tr><td>Complete-consent</td><td>180s</td><td>Within 150 seconds</td><td><code>consent_token</code></td><td>24 hours (<code>one_time</code>) / RP-specified (<code>continuous_*</code>)</td></tr>" +
+          "<tr><td>Request-data</td><td>5-15 min (300-900s)</td><td>Within 5 minutes</td><td>-- (consumes the existing <code>consent_token</code>)</td><td>n/a</td></tr>" +
+          "</tbody></table>" +
+          note(
+            "Pre-consent's SLA is tight (5s) because it only returns a masked account list. Complete-consent (150s) and request-data (5 min) allow real token creation / data retrieval time, hence the looser budget. These are AS-side response-time expectations, not platform-enforced values -- the platform only enforces the RP's own request_timeout column (the request expires once that elapses, regardless of how fast or slow the AS actually was).",
+          ) +
+          '<hr class="sdiv">' +
           topicHead("<b>On-chain Service IDs</b>") +
           tbl(onChainRows, ["Service ID", "Description", "API Type"]) +
+          '<hr class="sdiv">' +
+          topicHead("<b>AS Service Registration -- On-chain (One-time Setup)</b>") +
+          desc(
+            "Before any of the 5 on-chain service_ids above will route to your AS node, register each one via a different endpoint than the YourData one below:",
+          ) +
+          rb(
+            'POST /v7/as/service/{service_id}\n{\n  "reference_id": "as-svc-reg-1750000000000",\n  "callback_url": "http://as-cb:6002/as/service/callback",\n  "min_ial": 2.3,\n  "min_aal": 2.1,\n  "url": "https://as1.example.com/as/service_data",\n  "supported_namespace_list": ["citizen_id"]\n}',
+          ) +
           note(
-            "<b>AS registration for on-chain services</b> uses a different endpoint than the YourData one below -- POST /v7/as/service/{service_id}, with body {reference_id, callback_url, min_ial, min_aal, url, supported_namespace_list} (reference_id and callback_url required). There's no supported_authorization/service_availability here -- the on-chain flow doesn't have YourData's token/usage_type concept. Register each of the 5 service_ids above (900.pre_consent_*, 900.revoke_consent_001) this way before they'll route to your AS node.",
+            "<code>reference_id</code> and <code>callback_url</code> are <b>always required</b>. <code>min_ial</code>/<code>min_aal</code>/<code>url</code>/<code>supported_namespace_list</code> are only optional when <b>updating</b> a service_id your node already registered -- on the <b>first</b> registration of a given service_id, all four are required too (MISSING_ARGUMENTS otherwise). There's no supported_authorization/service_availability here -- the on-chain flow doesn't have YourData's token/usage_type concept. Register each of the 5 service_ids above (900.pre_consent_*, 900.revoke_consent_001) this way.",
           ) +
           '<hr class="sdiv">' +
           topicHead("<b>Off-chain YourData Service IDs</b>") +
           tbl(offChainRows, ["Service ID", "Description", "API Type"]) +
           '<hr class="sdiv">' +
-          topicHead("<b>AS Service Registration (One-time Setup)</b>") +
+          topicHead("<b>AS Service Registration -- Off-chain (One-time Setup)</b>") +
           desc(
             "Before any of the above works, each AS must register every service_id it supports:",
           ) +
           rb(
-            "POST /v7/yourdata/as/service/{service_id}\n{\n  \"service_url\": \"https://as1.example.com/yourdata/callback\",\n  \"supported_namespace_list\": [\"account_id\"],\n  \"supported_authorization\": [\"token_one_time\", \"token_continuous_with_expire\"],\n  \"service_availability\": true\n}",
+            "POST /v7/yourdata/as/service/{service_id}\n{\n  \"service_url\": \"https://as1.example.com/yourdata/callback\",\n  \"supported_namespace_list\": [\"citizen_id\"],\n  \"supported_authorization\": [\"token_one_time\", \"token_continuous_with_expire\"],\n  \"service_availability\": true\n}",
           ) +
           note(
-            "<code>supported_authorization</code> declares which token usage_types this service_id accepts -- the AS node validates incoming tokens against whatever was registered here. For YourData today, register whichever of <b>token_one_time</b> and <b>token_continuous_with_expire</b> your bank actually supports for that service.<br><br>" +
+            "<code>supported_namespace_list</code> is checked against the <b>top-level citizen namespace</b> of the incoming request (always citizen_id for YourData) -- not the sub-account namespace inside sub_identity_list (e.g. account_id, card_number, e_wallet_id). Register [\"citizen_id\"] here.<br><br>" +
+              "<code>supported_authorization</code> declares which token usage_types this service_id accepts -- the AS node validates incoming tokens against whatever was registered here. For YourData today, register whichever of <b>token_one_time</b> and <b>token_continuous_with_expire</b> your bank actually supports for that service.<br><br>" +
               "<b>Register <code>900.complete_consent_001</code> with at least <code>token_one_time</code></b> -- even if your bank only supports continuous consent overall. Complete-consent and request-data share the same underlying validation mechanism, and the pre-consent &rarr; complete-consent exchange always uses a <code>one_time</code> as_token regardless of the eventual consent_token's usage_type. Forgetting this means valid complete-consent calls get rejected.<br><br>" +
               "Register each dataset service_id with whichever usage_types your bank actually supports for that data.<br><br>" +
               "* The full enum also includes <code>no_token_needed</code> and <code>token_continuous_no_expire</code> -- the latter is reserved for future use (project CONNEXT) and has no YourData use case today.",
@@ -4859,7 +5842,7 @@
             "<b>What <code>validate_identifier</code> / <code>validate_service_id</code> / <code>validate_service_extension</code> actually do:</b> these flags travel inside the signed token and are enforced <b>automatically by NDID's platform software on the AS's node</b>, before your application's callback is ever invoked (see Step 4's \"what the platform already validated\").<br><br>" +
               "&bull; <code>validate_identifier: true</code> &rarr; platform confirms the namespace/identifier (or sub_identity_list account) on the incoming request matches the token's.<br>" +
               "&bull; <code>validate_service_id: true</code> &rarr; platform confirms the requested service_id matches one the token was scoped to.<br>" +
-              "&bull; <code>validate_service_extension: true</code> &rarr; platform also confirms service_extension (e.g. accounts_basic vs accounts_detail) matches.<br><br>" +
+              "&bull; <code>validate_service_extension: true</code> &rarr; platform also confirms service_extension (if the request specifies one) matches what's on the token. None of the service_ids in this guide carry a service_extension anymore -- Basic/Detail and Lookback are now baked into the service_id itself -- so this check is a no-op here, but the flag still exists generically for any service_id that does use one.<br><br>" +
               "Setting a flag <code>false</code> tells the platform it does <b>not</b> need to enforce that particular match -- used for as_token's <code>validate_service_extension</code> above because the real requested extension is embedded in the intent JSON, not meant to be literally compared. A mismatch on any true flag rejects the request before your callback URL is even called.",
           );
 

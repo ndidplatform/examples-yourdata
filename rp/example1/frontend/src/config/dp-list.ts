@@ -8,7 +8,7 @@ export const dpListConfig: DataProvider[] = [
     tcUrl: '',
     datasets: [
       {
-        datasetId: '900.deposit_transactions_001',
+        datasetId: '900.deposit_transactions_basic_002',
         datasetName: 'รายการเดินบัญชีเงินฝาก',
         permissions: [
           { permissionId: 'transactions_basic',  permissionName: 'ข้อมูลธุรกรรมพื้นฐาน' },
@@ -18,7 +18,7 @@ export const dpListConfig: DataProvider[] = [
         isMandatory: true,
       },
       {
-        datasetId: '900.cardpayment_transactions_001',
+        datasetId: '900.cardpayment_transactions_basic_002',
         datasetName: 'รายการธุรกรรมบัตรเครดิต',
         permissions: [
           { permissionId: 'transactions_basic',  permissionName: 'ข้อมูลธุรกรรมพื้นฐาน' },
@@ -36,7 +36,7 @@ export const dpListConfig: DataProvider[] = [
     tcUrl: '',
     datasets: [
       {
-        datasetId: '900.deposit_transactions_001',
+        datasetId: '900.deposit_transactions_basic_002',
         datasetName: 'รายการเดินบัญชีเงินฝาก',
         permissions: [
           { permissionId: 'transactions_basic',  permissionName: 'ข้อมูลธุรกรรมพื้นฐาน' },

@@ -12,14 +12,14 @@ export function StepDPSelect() {
   const error = useConsentRequestStore(s => s.error)
 
   const selectedIds = selectedDPs
-    .filter(d => d.selectedDatasets.some(ds => ds.datasetId === '900.deposit_transactions_001'))
+    .filter(d => d.selectedDatasets.some(ds => ds.datasetId.startsWith('900.deposit_transactions_')))
     .map(d => d.dpId)
   const selectedCount = selectedDPs.length
   const progressPct = Math.min((selectedCount / MAX_DP_COUNT) * 100, 100)
 
   const depositDataset = availableDPs
     .flatMap(dp => dp.datasets)
-    .find(d => d.datasetId === '900.deposit_transactions_001')
+    .find(d => d.datasetId.startsWith('900.deposit_transactions_'))
   const fromDate = depositDataset?.dataPeriod.fromDate ?? ''
   const toDate = depositDataset?.dataPeriod.toDate ?? ''
   const months = depositDataset?.dataPeriod.months ?? 6
@@ -73,12 +73,12 @@ export function StepDPSelect() {
           </div>
         </div>
 
-        {availableDPs.filter(dp => dp.datasets.some(d => d.datasetId === '900.deposit_transactions_001')).map(dp => (
+        {availableDPs.filter(dp => dp.datasets.some(d => d.datasetId.startsWith('900.deposit_transactions_'))).map(dp => (
           <DPCard
             key={dp.dpId}
             dp={dp}
             isSelected={selectedIds.includes(dp.dpId)}
-            onToggle={(dpId) => toggleDP(dpId, '900.deposit_transactions_001')}
+            onToggle={(dpId) => toggleDP(dpId, '900.deposit_transactions_basic_002')}
           />
         ))}
 
