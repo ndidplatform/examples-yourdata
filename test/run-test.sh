@@ -128,7 +128,7 @@ info "Step 2 — Pre-consent (deposit accounts)"
 # complete-consent time.
 PC=$(curl -sf -X POST http://localhost:9000/pre-consent/create \
   -H "Content-Type: application/json" \
-  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_deposit_001","request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_001\",\"service_extension\":[\"transactions_basic\",\"transactions_detail\",\"lookback_12_months\"]}]}"}]}')
+  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_deposit_001","request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\"},{\"service_id\":\"900.deposit_transactions_detail_001\"},{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"}]}')
 PC_ID=$(json_field "$PC" request_id)
 ok "Pre-consent created  request_id=$PC_ID"
 
@@ -183,11 +183,13 @@ CC_RESOLVED_IDS=$(echo "$CC_DATA" | node -e "
 # ── Step 4a: Data request — transactions_basic (no payer/payee names) ─────────
 
 echo ""
-info "Step 4a — Data request (900.deposit_transactions_001, transactions_basic)"
+info "Step 4a — Data request (900.deposit_transactions_basic_001, basic, 6 months)"
 # Only the accountId is sent — the RP resolves the consent_token itself.
+# Level (basic) and lookback (6 months) are encoded in the service_id itself
+# — no service_extension needed.
 DR=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.deposit_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\",\"service_extension\":[\"transactions_basic\"]}")
+  -d "{\"service_id\":\"900.deposit_transactions_basic_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\"}")
 DR_ID=$(json_field "$DR" request_id)
 ok "Data request created  request_id=$DR_ID"
 
@@ -214,10 +216,10 @@ BASIC_HAS_PAYER=$(echo "$DR_DATA" | node -e "
 # ── Step 4b: Data request — transactions_detail (with payer/payee names) ──────
 
 echo ""
-info "Step 4b — Data request (900.deposit_transactions_001, transactions_detail)"
+info "Step 4b — Data request (900.deposit_transactions_detail_001, detail, 6 months)"
 DR2=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.deposit_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\",\"service_extension\":[\"transactions_detail\"]}")
+  -d "{\"service_id\":\"900.deposit_transactions_detail_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\"}")
 DR2_ID=$(json_field "$DR2" request_id)
 ok "Data request created  request_id=$DR2_ID"
 
@@ -242,13 +244,13 @@ echo "$DR2_DATA" | node -e "
   (d.statementEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
 "
 
-# ── Step 4c: Data request — lookback_<N>_months ─────
+# ── Step 4c: Data request — 12-month lookback (basic_002, no explicit date range) ──
 
 echo ""
-info "Step 4c — Data request with lookback_12_months (no explicit date range)"
+info "Step 4c — Data request (900.deposit_transactions_basic_002, basic, 12 months)"
 DR3=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.deposit_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\",\"service_extension\":[\"transactions_basic\",\"lookback_12_months\"]}")
+  -d "{\"service_id\":\"900.deposit_transactions_basic_002\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\"}")
 DR3_ID=$(json_field "$DR3" request_id)
 ok "Data request created  request_id=$DR3_ID"
 
@@ -273,7 +275,7 @@ echo ""
 info "Step 5 — Pre-consent (credit cards, AS1)"
 PC2=$(curl -sf -X POST http://localhost:9000/pre-consent/create \
   -H "Content-Type: application/json" \
-  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_cardpayment_001","request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_001\",\"service_extension\":[\"transactions_detail\"]}]}"}]}')
+  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_cardpayment_001","request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_detail_001\"}]}"}]}')
 PC2_ID=$(json_field "$PC2" request_id)
 ok "Credit card pre-consent created  request_id=$PC2_ID"
 
@@ -322,10 +324,10 @@ CC2_RESOLVED_IDS=$(echo "$CC2_DATA" | node -e "
 # ── Step 7: Data request — credit card transactions_detail ────────────────────
 
 echo ""
-info "Step 7 — Data request (900.cardpayment_transactions_001, AS1, transactions_detail)"
+info "Step 7 — Data request (900.cardpayment_transactions_detail_001, AS1, detail, 6 months)"
 DR_CC=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.cardpayment_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$CC_ACCOUNT_ID\",\"service_extension\":[\"transactions_detail\"]}")
+  -d "{\"service_id\":\"900.cardpayment_transactions_detail_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$CC_ACCOUNT_ID\"}")
 DR_CC_ID=$(json_field "$DR_CC" request_id)
 ok "Credit card data request created  request_id=$DR_CC_ID"
 
@@ -376,7 +378,7 @@ info "Step M1 — Multi-AS pre-consent (deposit x2 + credit card x1)"
 # AS stores usage_type + data_service_list at pre-consent time, reads at complete-consent.
 PMC=$(curl -sf -X POST http://localhost:9000/pre-consent/create \
   -H "Content-Type: application/json" \
-  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_deposit_001","as_id_list":["as1","as2"],"min_as":2,"request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_001\",\"service_extension\":[\"transactions_basic\",\"transactions_detail\"]}]}"},{"service_id":"900.pre_consent_cardpayment_001","as_id_list":["as1"],"min_as":1,"request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_001\",\"service_extension\":[\"transactions_detail\"]}]}"}]}')
+  -d '{"namespace":"citizen_id","identifier":"1234567890123","data_request_list":[{"service_id":"900.pre_consent_deposit_001","as_id_list":["as1","as2"],"min_as":2,"request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\"},{\"service_id\":\"900.deposit_transactions_detail_001\"}]}"},{"service_id":"900.pre_consent_cardpayment_001","as_id_list":["as1"],"min_as":1,"request_params":"{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_detail_001\"}]}"}]}')
 PMC_ID=$(json_field "$PMC" request_id)
 ok "Multi-AS pre-consent created  request_id=$PMC_ID"
 
@@ -431,10 +433,10 @@ CC_AS2_RESOLVED_IDS=$(echo "$CC_AS2_DATA" | node -e "
 [ "$CC_AS2_RESOLVED_IDS" = "$AS2_ACCOUNT_ID" ] && ok "AS2 (Beta Bank) account consented  accountId=$CC_AS2_RESOLVED_IDS" || fail "Expected accountId $AS2_ACCOUNT_ID, got: $CC_AS2_RESOLVED_IDS"
 
 echo ""
-info "Step M3 — Data request: 900.deposit_transactions_001 from AS2 (Beta Bank)"
+info "Step M3 — Data request: 900.deposit_transactions_detail_001 from AS2 (Beta Bank)"
 DR_AS2=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.deposit_transactions_001\",\"as_node_id\":\"as2\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$AS2_ACCOUNT_ID\",\"service_extension\":[\"transactions_detail\"]}")
+  -d "{\"service_id\":\"900.deposit_transactions_detail_001\",\"as_node_id\":\"as2\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$AS2_ACCOUNT_ID\"}")
 DR_AS2_ID=$(json_field "$DR_AS2" request_id)
 ok "AS2 data request created  request_id=$DR_AS2_ID"
 
@@ -483,7 +485,7 @@ info "Step 8b — Verify revoked deposit token is rejected (expect error 40720)"
 # and the AS rejects it.
 RV_DR=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.deposit_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\",\"service_extension\":[\"transactions_basic\"]}")
+  -d "{\"service_id\":\"900.deposit_transactions_basic_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$DEPOSIT_ACCOUNT_ID\"}")
 RV_DR_ID=$(json_field "$RV_DR" request_id)
 
 echo "  Waiting for AS to reject revoked token (4s)..."
@@ -518,7 +520,7 @@ echo ""
 info "Step 9b — Verify revoked credit card token is rejected (expect error 40720)"
 RV2_DR=$(curl -sf -X POST http://localhost:9000/data-request/create \
   -H "Content-Type: application/json" \
-  -d "{\"service_id\":\"900.cardpayment_transactions_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$CC_ACCOUNT_ID\",\"service_extension\":[\"transactions_basic\"]}")
+  -d "{\"service_id\":\"900.cardpayment_transactions_detail_001\",\"as_node_id\":\"as1\",\"namespace\":\"citizen_id\",\"identifier\":\"1234567890123\",\"account_id\":\"$CC_ACCOUNT_ID\"}")
 RV2_DR_ID=$(json_field "$RV2_DR" request_id)
 
 echo "  Waiting for AS to reject revoked token (4s)..."

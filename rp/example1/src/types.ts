@@ -251,7 +251,7 @@ interface PreConsentDataRequestItem {
    * JSON-stringified intent object passed as-is to the NDID platform and
    * forwarded to the AS callback. Must include "usage_type" and optionally
    * "data_service_list" so the AS can build the scoped consent token.
-   * Example: '{"token_objective":"เพื่อการพิจารณาให้สินเชื่อ","usage_type":"one_time","data_service_list":[{"service_id":"900.deposit_transactions_001","service_extension":["transactions_basic","lookback_12_months"]}]}'
+   * Example: '{"token_objective":"เพื่อการพิจารณาให้สินเชื่อ","usage_type":"one_time","data_service_list":[{"service_id":"900.deposit_transactions_basic_002"}]}' — the service_id itself encodes data level (basic/detail) and lookback period (*_001 = 6 months, *_002 = 12 months), so no service_extension is needed here.
    */
   request_params: string;
 }

@@ -30,7 +30,7 @@ const POLL_MAX_ATTEMPTS = 15
 
 export class DataRequestServiceImpl implements DataRequestService {
   async fetchData(params: FetchDataParams): Promise<ServiceData[]> {
-    const dateRange = params.datasetId === '900.cardpayment_transactions_001'
+    const dateRange = params.datasetId.startsWith('900.cardpayment_transactions_')
       ? { fromTransactionDate: '2026-05-01T00:00:00+07:00', toTransactionDate: '2026-06-30T23:59:59+07:00' }
       : { fromBookingDateTime: '2026-05-01T00:00:00+07:00', toBookingDateTime: '2026-06-30T23:59:59+07:00' }
 
@@ -40,7 +40,6 @@ export class DataRequestServiceImpl implements DataRequestService {
       namespace: 'citizen_id',
       identifier: '1234567890123',
       account_id: params.accountId,
-      service_extension: [params.serviceExtension],
       request_params: JSON.stringify({ ...dateRange, language: 'TH' }),
       request_timeout: 900, // 15 minutes, matches backend default
     }

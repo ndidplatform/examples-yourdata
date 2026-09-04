@@ -262,8 +262,10 @@ async function orchestrateNdidFlow(requestId, info) {
   await delay(200);
   await callbackRP(cbPath, {
     node_id: 'rp1', type: 'request_status', request_id: requestId,
-    requester_node_id: 'rp1', mode: 3, request_message_hash: uid(),
-    min_ial: 2.3, min_aal: 2.1, min_idp: 1, idp_id_list: ['idp1'],
+    requester_node_id: 'rp1', mode: info.mode ?? 2, request_message_hash: uid(),
+    min_ial: 2.3, min_aal: 2.1, min_idp: 1,
+    ...(info.request_type ? { request_type: info.request_type } : {}),
+    idp_id_list: ['idp1'],
     response_list: [], data_request_list: makeDataReqList(false, false),
     request_timeout: info.request_timeout, closed: false, timed_out: false,
     status: 'pending', block_height: '1:101',
@@ -272,10 +274,11 @@ async function orchestrateNdidFlow(requestId, info) {
   // 3. IDP incoming request → IDP auto-accepts
   await delay(300);
   await callbackIDP('/idp/request', {
-    node_id: 'idp1', type: 'incoming_request', mode: 3,
+    node_id: 'idp1', type: 'incoming_request', mode: info.mode ?? 2,
     request_id: requestId, request_message: info.request_message,
     request_message_hash: uid(), request_message_salt: uid(),
     requester_node_id: 'rp1', min_ial: 2.3, min_aal: 2.1,
+    ...(info.request_type ? { request_type: info.request_type } : {}),
     initial_salt: uid(), creation_time: Date.now(),
     creation_block_height: '1:100', request_timeout: info.request_timeout,
     namespace: info.namespace, identifier: info.identifier,
@@ -287,8 +290,10 @@ async function orchestrateNdidFlow(requestId, info) {
   // 4. confirmed (IDP responded)
   await callbackRP(cbPath, {
     node_id: 'rp1', type: 'request_status', request_id: requestId,
-    requester_node_id: 'rp1', mode: 3, request_message_hash: uid(),
-    min_ial: 2.3, min_aal: 2.1, min_idp: 1, idp_id_list: ['idp1'],
+    requester_node_id: 'rp1', mode: info.mode ?? 2, request_message_hash: uid(),
+    min_ial: 2.3, min_aal: 2.1, min_idp: 1,
+    ...(info.request_type ? { request_type: info.request_type } : {}),
+    idp_id_list: ['idp1'],
     response_list: [{ idp_id: 'idp1', ial: 2.3, aal: 2.1, status: 'accept',
       valid_signature: true, valid_ial: true }],
     data_request_list: makeDataReqList(false, false),
@@ -303,13 +308,14 @@ async function orchestrateNdidFlow(requestId, info) {
       await delay(300);
       await callbackToAS(asNodeId, `/as/service/${svc.service_id}`, {
         node_id: asNodeId, type: 'data_request',
-        request_id: requestId, mode: 3,
+        request_id: requestId, mode: info.mode ?? 2,
         namespace: info.namespace, identifier: info.identifier,
         service_id: svc.service_id, requester_node_id: 'rp1',
         response_signature_list: [uid()], max_ial: 2.3, max_aal: 2.1,
         creation_time: Date.now(), creation_block_height: '1:100',
         request_timeout: info.request_timeout,
         ...(svc.request_params !== undefined ? { request_params: svc.request_params } : {}),
+        ...(info.request_type ? { request_type: info.request_type } : {}),
       });
     }
   }
@@ -320,8 +326,10 @@ async function orchestrateNdidFlow(requestId, info) {
   // 7. completed + closed
   const closedStatus = {
     node_id: 'rp1', type: 'request_status', request_id: requestId,
-    requester_node_id: 'rp1', mode: 3, request_message_hash: uid(),
-    min_ial: 2.3, min_aal: 2.1, min_idp: 1, idp_id_list: ['idp1'],
+    requester_node_id: 'rp1', mode: info.mode ?? 2, request_message_hash: uid(),
+    min_ial: 2.3, min_aal: 2.1, min_idp: 1,
+    ...(info.request_type ? { request_type: info.request_type } : {}),
+    idp_id_list: ['idp1'],
     response_list: [{ idp_id: 'idp1', ial: 2.3, aal: 2.1, status: 'accept',
       valid_signature: true, valid_ial: true }],
     data_request_list: makeDataReqList(true, true),
@@ -336,8 +344,9 @@ async function orchestrateNdidFlow(requestId, info) {
     for (const asNodeId of asNodes) {
       await callbackToAS(asNodeId, '/as/request_status_update', {
         node_id: asNodeId, type: 'request_status',
-        request_id: requestId, requester_node_id: 'rp1', mode: 3,
+        request_id: requestId, requester_node_id: 'rp1', mode: info.mode ?? 2,
         request_message_hash: uid(), min_ial: 2.3, min_aal: 2.1, min_idp: 1,
+        ...(info.request_type ? { request_type: info.request_type } : {}),
         idp_id_list: ['idp1'],
         response_list: [{ idp_id: 'idp1', ial: 2.3, aal: 2.1, status: 'accept' }],
         data_request_list: [{

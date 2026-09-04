@@ -33,11 +33,12 @@ export class ConsentServiceImpl implements ConsentService {
   async initConsentRequest(
     params: InitConsentParams,
   ): Promise<{ referenceId: string; requestId: string }> {
-    // Group by service_id — all DPs that share a service go into one as_id_list entry
-    const serviceMap = new Map<
-      string,
-      { asIds: string[]; datasetId: string; permissionId: string; lookbackMonths?: number }
-    >()
+    // Group by service_id — all DPs that share a service go into one as_id_list entry.
+    // ds.datasetId is already the fully-resolved Your Data service_id, e.g.
+    // '900.deposit_transactions_basic_002' — level (basic/detail) and lookback
+    // period (6/12 months) are encoded directly in it, so there's no separate
+    // service_extension to build here.
+    const serviceMap = new Map<string, { asIds: string[]; datasetId: string }>()
     for (const dp of params.selectedDPs) {
       for (const ds of dp.selectedDatasets) {
         const serviceId = datasetToServiceId(ds.datasetId)
@@ -48,30 +49,20 @@ export class ConsentServiceImpl implements ConsentService {
           serviceMap.set(serviceId, {
             asIds: [dp.dpId],
             datasetId: ds.datasetId,
-            permissionId: ds.permissionId,
-            lookbackMonths: ds.dataPeriod?.months,
           })
         }
       }
     }
     const dataRequestList = Array.from(serviceMap.entries()).map(
-      ([service_id, { asIds, datasetId, permissionId, lookbackMonths }]) => {
-        const serviceExtension = [
-          ...(permissionId ? [permissionId] : []),
-          ...(lookbackMonths ? [`lookback_${lookbackMonths}_months`] : []),
-        ]
-        return {
-          service_id,
-          as_id_list: asIds,
-          request_params: JSON.stringify({
-            token_objective: `เพื่อ${params.purpose || 'การพิจารณาให้สินเชื่อ'}`,
-            usage_type: 'one_time',
-            data_service_list: [
-              { service_id: datasetId, ...(serviceExtension.length > 0 ? { service_extension: serviceExtension } : {}) },
-            ],
-          }),
-        }
-      },
+      ([service_id, { asIds, datasetId }]) => ({
+        service_id,
+        as_id_list: asIds,
+        request_params: JSON.stringify({
+          token_objective: `เพื่อ${params.purpose || 'การพิจารณาให้สินเชื่อ'}`,
+          usage_type: 'one_time',
+          data_service_list: [{ service_id: datasetId }],
+        }),
+      }),
     )
 
     const body = {

@@ -94,7 +94,10 @@ async function registerServices(): Promise<void> {
 
   const yourDataServiceAuthorizations: Record<string, Array<'token_one_time' | 'token_continuous_with_expire' | 'token_continuous_no_expire'>> = {
     '900.complete_consent_001': ['token_one_time'],
-    '900.deposit_transactions_001': ['token_one_time', 'token_continuous_with_expire', 'token_continuous_no_expire'],
+    '900.deposit_transactions_basic_001': ['token_one_time', 'token_continuous_with_expire', 'token_continuous_no_expire'],
+    '900.deposit_transactions_basic_002': ['token_one_time', 'token_continuous_with_expire', 'token_continuous_no_expire'],
+    '900.deposit_transactions_detail_001': ['token_one_time', 'token_continuous_with_expire', 'token_continuous_no_expire'],
+    '900.deposit_transactions_detail_002': ['token_one_time', 'token_continuous_with_expire', 'token_continuous_no_expire'],
   };
 
   for (const service_id of Object.keys(yourDataServiceAuthorizations)) {
@@ -205,16 +208,23 @@ function decodeTokenPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function parseLookbackMonths(extensions?: string[]): number | undefined {
-  let months: number | undefined;
-  for (const ext of extensions ?? []) {
-    const match = /^lookback_(\d+)_months?$/.exec(ext);
-    if (match) {
-      const n = parseInt(match[1], 10);
-      if (months === undefined || n > months) months = n;
-    }
-  }
-  return months;
+/**
+ * Parse the data level ('basic' | 'detail') and lookback window encoded
+ * directly in a Your Data service_id, e.g.
+ * '900.deposit_transactions_detail_002' -> { level: 'detail', lookbackMonths: 12 }.
+ * Per the service ID catalog: *_basic_001 / *_detail_001 = 6 months,
+ * *_basic_002 / *_detail_002 = 12 months. Level and lookback are encoded in
+ * the service_id itself — no longer read from service_extension.
+ */
+function parseServiceIdLevel(
+  serviceId: string,
+): { level: 'basic' | 'detail'; lookbackMonths: number } | undefined {
+  const match = /_(basic|detail)_(001|002)$/.exec(serviceId);
+  if (!match) return undefined;
+  return {
+    level: match[1] as 'basic' | 'detail',
+    lookbackMonths: match[2] === '002' ? 12 : 6,
+  };
 }
 
 function validateToken(authorization: string): { error_code: number; error_message: string } | null {
@@ -576,7 +586,7 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
         data: JSON.stringify(consent_tokens),
       });
       pendingPreConsentTokenByRequestId.set(request_id, data.authorization);
-    } else if (service_id === '900.deposit_transactions_001') {
+    } else if (service_id.startsWith('900.deposit_transactions_')) {
       const tokenError = validateToken(data.authorization);
       if (tokenError) {
         await API.sendYourDataError({ request_id, ...tokenError });
@@ -594,21 +604,30 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
       let fromStr = (fromBookingDateTime ?? fromTransactionDate) as string | undefined;
       let toStr = (toBookingDateTime ?? toTransactionDate) as string | undefined;
 
-      const lookbackMonths = parseLookbackMonths(data.service_extension) ?? 6;
-      const to = new Date();
-      const from = new Date(to);
-      from.setMonth(from.getMonth() - lookbackMonths);
-      const lookbackMaxDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+      const serviceLevel = parseServiceIdLevel(service_id);
+      const lookbackMonths = serviceLevel?.lookbackMonths ?? 6;
+      // The lookback window is anchored to *now* — the date/time this request
+      // is processed. The current month counts as "month 0"; counting back
+      // `lookbackMonths` months from there gives the earliest allowed month,
+      // and a DC (the requesting party) may use any fromDate from the 1st of
+      // that month onward — e.g. a request on 3 Sep 2026 with a 6-month
+      // lookback permits fromDate as early as 1 Mar 2026. A requested toDate
+      // may never be later than now.
+      const now = new Date();
+      const earliestFrom = new Date(now);
+      earliestFrom.setMonth(earliestFrom.getMonth() - lookbackMonths, 1);
+      earliestFrom.setHours(0, 0, 0, 0);
+
       if (!fromStr && !toStr) {
-        fromStr = from.toISOString();
-        toStr = to.toISOString();
+        fromStr = earliestFrom.toISOString();
+        toStr = now.toISOString();
       }
 
       let dateRange: { from: number; to: number } | undefined;
       if (fromStr && toStr) {
-        const from = new Date(fromStr).getTime();
-        const to = new Date(toStr).getTime();
-        if (isNaN(from) || isNaN(to) || to < from) {
+        const fromMs = new Date(fromStr).getTime();
+        const toMs = new Date(toStr).getTime();
+        if (isNaN(fromMs) || isNaN(toMs) || toMs < fromMs) {
           await API.sendYourDataError({
             request_id,
             error_code: 40400,
@@ -616,7 +635,7 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
           });
           return;
         }
-        if ((to - from) / (1000 * 60 * 60 * 24) > lookbackMaxDays) {
+        if (toMs > now.getTime() || fromMs < earliestFrom.getTime()) {
           await API.sendYourDataError({
             request_id,
             error_code: 40710,
@@ -624,12 +643,10 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
           });
           return;
         }
-        dateRange = { from, to };
+        dateRange = { from: fromMs, to: toMs };
       }
 
-      const extension = data.service_extension?.includes('transactions_detail')
-        ? 'transactions_detail'
-        : 'transactions_basic';
+      const extension = serviceLevel?.level === 'detail' ? 'transactions_detail' : 'transactions_basic';
       const tokenAccount = tokenAccountMap.get(data.authorization);
       if (!tokenAccount) {
         await API.sendYourDataError({
@@ -745,14 +762,15 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.get('/services', async (_req: Request, res: Response) => {
   try {
-    const [deposit, completeConsent] = await Promise.all([
-      API.getYourDataService('900.deposit_transactions_001'),
-      API.getYourDataService('900.complete_consent_001'),
-    ]);
-    res.status(200).json({
-      deposit_transactions: deposit,
-      complete_consent: completeConsent,
-    });
+    const serviceIds = [
+      '900.deposit_transactions_basic_001',
+      '900.deposit_transactions_basic_002',
+      '900.deposit_transactions_detail_001',
+      '900.deposit_transactions_detail_002',
+      '900.complete_consent_001',
+    ];
+    const results = await Promise.all(serviceIds.map((id) => API.getYourDataService(id)));
+    res.status(200).json(Object.fromEntries(serviceIds.map((id, i) => [id, results[i]])));
   } catch (error) {
     res.status(500).json(error);
   }

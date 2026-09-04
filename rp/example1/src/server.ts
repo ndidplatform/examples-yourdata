@@ -168,6 +168,7 @@ function resolveServiceVersion(payload: YourDataTokenPayload | null, serviceId: 
 
 // ─── Pre-consent Flow ─────────────────────────────────────────────────────────
 // Uses standard NDID consent (on-chain with IDP). service_id = pre_consent_xxx
+// mode: 2, request_type: 'AuthenOnly', min_ial: 2.3, min_aal: 2.1, min_idp: 1, min_as: 0.
 
 app.post('/pre-consent/create', async (req: Request, res: Response) => {
   const {
@@ -189,8 +190,12 @@ app.post('/pre-consent/create', async (req: Request, res: Response) => {
   }));
 
   try {
+    // Mode 2 + request_type 'AuthenOnly': identity is confirmed via the IdP,
+    // no data is exchanged as part of this on-chain request itself — the
+    // actual account/data exchange happens over the off-chain YourData API
+    // (pre_consent_xxx service calls to the AS) once the IdP has responded.
     const result = await API.createNdidRequest({
-      mode: 3,
+      mode: 2,
       namespace,
       identifier,
       reference_id: referenceId,
@@ -201,6 +206,7 @@ app.post('/pre-consent/create', async (req: Request, res: Response) => {
       min_ial: 2.3,
       min_aal: 2.1,
       min_idp: min_idp ?? 1,
+      request_type: 'AuthenOnly',
       request_timeout: request_timeout ?? 300, // 5 minutes
     });
 
@@ -480,6 +486,7 @@ app.post(
 
 // ─── Revoke Flow ──────────────────────────────────────────────────────────────
 // Uses standard NDID consent (on-chain with IDP). service_id = revoke_consent
+// mode: 2, request_type: 'AuthenOnly', min_ial: 2.3, min_aal: 2.1, min_idp: 1, min_as: 0.
 
 app.post('/revoke/create', async (req: Request, res: Response) => {
   const {
@@ -512,8 +519,12 @@ app.post('/revoke/create', async (req: Request, res: Response) => {
   );
 
   try {
+    // Mode 2 + request_type 'AuthenOnly': identity is confirmed via the IdP,
+    // no data is exchanged as part of this on-chain request itself — the AS
+    // acknowledges which tokens it revoked over the off-chain YourData API
+    // (revoke_consent_001) once the IdP has responded.
     const result = await API.createNdidRequest({
-      mode: 3,
+      mode: 2,
       namespace,
       identifier,
       reference_id: referenceId,
@@ -533,6 +544,7 @@ app.post('/revoke/create', async (req: Request, res: Response) => {
       min_ial: 2.3,
       min_aal: 2.1,
       min_idp: min_idp ?? 1,
+      request_type: 'AuthenOnly',
       request_timeout: request_timeout ?? 86400,
     });
 

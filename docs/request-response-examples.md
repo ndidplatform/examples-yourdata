@@ -15,8 +15,7 @@
   "usage_type": "continuous_with_expire",
   "data_service_list": [
     {
-      "service_id": "900.deposit_transactions_001",
-      "service_extension": ["transactions_basic", "lookback_12_months"],
+      "service_id": "900.deposit_transactions_basic_002",
       "expiration_datetime": 1791954000
     }
   ]
@@ -27,7 +26,7 @@
 `continuous_with_expire` — it lets the RP request a specific expiry (unix
 seconds) for the resulting consent token.
 
-`lookback_<N>_months` applies to transaction/statement-type datasets — it controls how far back historical records are returned. It doesn't apply to non-transactional service types. Supported values are `lookback_6_months` and `lookback_12_months`.
+The lookback period (6 or 12 months) and permission level (Basic/Detail) for Transactions/Statement-type datasets are both encoded directly in the requested `service_id` — e.g. `900.deposit_transactions_basic_002` is Basic level with a 12-month lookback (`_001` suffix = 6 months, `_002` suffix = 12 months; see the API guide §3/§4). There's no separate `service_extension` value to set for this.
 
 **Response**
 
@@ -79,7 +78,7 @@ Decoded `authorization` payload (JWT middle segment, mock/unsigned):
       "service_id": "900.complete_consent_001",
       "service_version": "v1",
       "service_extension": [
-        "{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_001\",\"service_extension\":[\"transactions_basic\",\"lookback_12_months\"]}]}"
+        "{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"
       ]
     }
   ]
@@ -160,9 +159,8 @@ Decoded consent token for `alpha-dep-a1b2c3d4`:
   "validate_service_extension": true,
   "service_id_list": [
     {
-      "service_id": "900.deposit_transactions_001",
-      "service_version": "v1",
-      "service_extension": ["transactions_basic", "lookback_12_months"]
+      "service_id": "900.deposit_transactions_basic_002",
+      "service_version": "v1"
     }
   ],
   "sub_identity_list": [
@@ -215,7 +213,7 @@ complete-consent:
 [
   {
     "source_node_id": "as1",
-    "service_id": "900.deposit_transactions_001",
+    "service_id": "900.deposit_transactions_basic_002",
     "data": {
       "accountId": "123-456-1234",
       "statementEntries": [
@@ -292,7 +290,7 @@ complete-consent:
 [
   {
     "source_node_id": "as1",
-    "service_id": "900.deposit_transactions_001",
+    "service_id": "900.deposit_transactions_basic_002",
     "data": {
       "accountId": "234-567-5678",
       "statementEntries": [

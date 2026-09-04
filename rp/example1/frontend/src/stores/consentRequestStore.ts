@@ -248,7 +248,7 @@ export const useConsentRequestStore = create<ConsentRequestState & ConsentReques
           for (const ds of dp.selectedDatasets) {
             // The AS issues a separate, account-scoped consent token per selected
             // account — fetch each selected account for this dataset individually.
-            const accountType = ds.datasetId === '900.cardpayment_transactions_001' ? 'loan' : 'deposit'
+            const accountType = ds.datasetId.startsWith('900.cardpayment_transactions_') ? 'loan' : 'deposit'
             const dsAccounts = accounts.filter(
               a => a.dpId === dp.dpId && a.isSelected && a.accountType === accountType
                 && consentedAccountIds.includes(a.accountId),
@@ -260,7 +260,6 @@ export const useConsentRequestStore = create<ConsentRequestState & ConsentReques
                   const data = await dataRequestService.fetchData({
                     dpId: dp.dpId,
                     datasetId: ds.datasetId,
-                    serviceExtension: ds.permissionId,
                     accountId: acc.accountId,
                   })
                   // The AS response doesn't echo back the account's display type —
