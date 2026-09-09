@@ -205,11 +205,11 @@ export interface RegisterNdidServiceParams {
  */
 export interface ConsentIntent {
   usage_type: YourDataUsageType;
+  expiration_datetime?: number;
   data_service_list?: Array<{
     service_id: string;
     service_version?: string;
     service_extension?: string[];
-    expiration_datetime?: number;
   }>;
   sub_identity_list?: SubIdentity[];
   /**

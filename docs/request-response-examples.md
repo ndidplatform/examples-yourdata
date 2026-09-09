@@ -13,10 +13,10 @@
 {
   "token_objective": "เพื่อการพิจารณาให้สินเชื่อ",
   "usage_type": "continuous_with_expire",
+  "expiration_datetime": 1791954000,
   "data_service_list": [
     {
-      "service_id": "900.deposit_transactions_basic_002",
-      "expiration_datetime": 1791954000
+      "service_id": "900.deposit_transactions_basic_002"
     }
   ]
 }
@@ -24,7 +24,9 @@
 
 `expiration_datetime` here is optional and only meaningful when `usage_type` is
 `continuous_with_expire` — it lets the RP request a specific expiry (unix
-seconds) for the resulting consent token.
+seconds) for the resulting consent token. It sits at the top level of
+`request_params`, alongside `usage_type` — not inside individual
+`data_service_list` items.
 
 The lookback period (6 or 12 months) and permission level (Basic/Detail) for Transactions/Statement-type datasets are both encoded directly in the requested `service_id` — e.g. `900.deposit_transactions_basic_002` is Basic level with a 12-month lookback (`_001` suffix = 6 months, `_002` suffix = 12 months; see the API guide §3/§4). There's no separate `service_extension` value to set for this.
 
@@ -78,7 +80,7 @@ Decoded `authorization` payload (JWT middle segment, mock/unsigned):
       "service_id": "900.complete_consent_001",
       "service_version": "v1",
       "service_extension": [
-        "{\"usage_type\":\"continuous_with_expire\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"
+        "{\"usage_type\":\"continuous_with_expire\",\"expiration_datetime\":1791954000,\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"
       ]
     }
   ]
@@ -176,8 +178,8 @@ Decoded consent token for `alpha-dep-a1b2c3d4`:
 
 `expiration_datetime` is a unix timestamp in **seconds**. It defaults to 90 days
 from issuance for `continuous_with_expire` tokens (1 day for `one_time`), unless
-the RP requests an override via `expiration_datetime` on the corresponding
-`data_service_list` item in the pre-consent `request_params` — that value is
+the RP requests an override via `expiration_datetime` at the top level of the
+pre-consent `request_params` (alongside `usage_type`) — that value is
 also expected in seconds, used as-is with no conversion. Note `visible_identifier`
 is the real (unmasked) account number here, not the masked value shown at
 pre-consent — this is intentional: by complete-consent time, the account has

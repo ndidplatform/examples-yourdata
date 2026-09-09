@@ -356,6 +356,8 @@ async function handleNdidDataRequest(
         if (usage_type && validUsageTypes.includes(usage_type)) {
           intent = {
             usage_type,
+            expiration_datetime:
+              typeof params.expiration_datetime === 'number' ? params.expiration_datetime : undefined,
             data_service_list: params.data_service_list?.map(
               (s: NonNullable<ConsentIntent['data_service_list']>[number]) => ({
                 ...s,
@@ -421,6 +423,9 @@ async function handleNdidDataRequest(
             service_extension: [
               JSON.stringify({
                 usage_type: intent.usage_type,
+                ...(intent.expiration_datetime !== undefined
+                  ? { expiration_datetime: intent.expiration_datetime }
+                  : {}),
                 data_service_list: intent.data_service_list ?? [],
               }),
             ],
@@ -504,6 +509,7 @@ async function handleYourDataRequest(
       } | null;
 
       let usage_type: YourDataUsageType | undefined = intent?.usage_type;
+      let requestedExpiration: number | undefined = intent?.expiration_datetime;
       let data_service_list: ConsentIntent['data_service_list'] = intent?.data_service_list;
       let token_objective: string | undefined = intent?.token_objective;
       let sub_identity_list: SubIdentity[] | undefined = intent?.sub_identity_list;
@@ -514,9 +520,11 @@ async function handleYourDataRequest(
           try {
             const parsedExt = JSON.parse(rawExt) as {
               usage_type?: YourDataUsageType;
+              expiration_datetime?: number;
               data_service_list?: ConsentIntent['data_service_list'];
             };
             usage_type ??= parsedExt.usage_type;
+            requestedExpiration ??= parsedExt.expiration_datetime;
             data_service_list ??= parsedExt.data_service_list;
           } catch { /* malformed — nothing recoverable */ }
         }
@@ -552,9 +560,6 @@ async function handleYourDataRequest(
           ? data_service_list
           : undefined;
 
-      const requestedExpiration = data_service_list?.find(
-        (s) => s.expiration_datetime !== undefined,
-      )?.expiration_datetime;
       const expiration_datetime =
         usage_type === 'continuous_with_expire'
           ? requestedExpiration ?? nowSeconds() + 90 * 24 * 60 * 60
@@ -605,9 +610,7 @@ async function handleYourDataRequest(
                 : {}),
               ...(svcList
                 ? {
-                    service_id_list: svcList.map(
-                      ({ expiration_datetime: _omit, ...rest }) => rest,
-                    ),
+                    service_id_list: svcList,
                   }
                 : {}),
               sub_identity_list: [
