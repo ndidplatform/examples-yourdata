@@ -434,6 +434,8 @@ POST /v7/rp/requests/citizen_id/{identifier}
 > - **Loan**: `language` (mandatory) + `loanTypeCode` (mandatory — not `accountSubType`) + `auxiliaryReferenceId` (optional)
 >
 > **There's no "omit and get a default" option anymore for Basic/Detail or lookback period** — since the v1.0.1 schemas, each tier × lookback combination is its own distinct `service_id` (§4), so the RP always picks one explicitly by which `service_id` it names in `data_service_list`. `service_extension` itself is no longer used in this `data_service_list` context at all.
+>
+> **`expiration_datetime` (for `usage_type: "continuous_with_expire"`) lives at the same level as `usage_type`** — a single value for the whole intent, not nested inside each `data_service_list` entry: `{"usage_type": "continuous_with_expire", "expiration_datetime": 1757808000, "data_service_list": [...], ...}`. Not shown in the example above since it's a `one_time` request; omitted entirely for `one_time`/`continuous_no_expire`, same as at token creation (§9.3).
 
 **NDID sync response:**
 ```json
@@ -546,7 +548,7 @@ POST /v7/yourdata/utility/token
 }
 ```
 
-> The `service_extension[0]` on `complete_consent_001` carries the original intent (usage_type + data_service_list) so the AS can reconstruct it during complete-consent without the RP re-sending it.
+> The `service_extension[0]` on `complete_consent_001` carries the original intent (usage_type + data_service_list, plus `expiration_datetime` alongside `usage_type` when it's `continuous_with_expire` — same placement as §8.1) so the AS can reconstruct it during complete-consent without the RP re-sending it.
 >
 > **The embedded `data_service_list` reflects only what this AS can actually provide.** The RP's requested `data_service_list` (from the pre-consent callback, §8.4) may include more service_ids than a given AS supports — the AS includes only the service_ids it can genuinely serve in the intent it embeds here, silently omitting the rest. **If none of the requested service_ids can be provided at all, the AS responds with error `40400` (Invalid data)** instead of creating an as_token with an empty `data_service_list`. This decision is made once, here at pre-consent — complete-consent (§9.3) just honors whatever was resolved into this embedded intent.
 >

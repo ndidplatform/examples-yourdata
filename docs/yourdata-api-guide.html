@@ -401,6 +401,19 @@
       .jwt-seg-dot {
         color: #64748b;
       }
+      .jwt-size-stat {
+        font-size: 0.68rem;
+        line-height: 1.6;
+        color: #cbd5e1;
+        background: #131c2e;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 12px;
+      }
+      .jwt-size-stat b {
+        color: #f1f5f9;
+      }
       .jwt-userdata-tbl {
         width: 100%;
         border-collapse: collapse;
@@ -1676,6 +1689,34 @@
           esc(parts[2]) +
           "</span>";
 
+        // This demo signs with HMAC-SHA256 (short, fixed-length signature) so the
+        // real byte count is shown alongside a realistic estimate for an actual
+        // RSA-2048-signed node token (base64url(256-byte signature) = 342 chars),
+        // which is what a real NDID as_token/consent_token is signed with.
+        var demoBytes = jwt.length;
+        var RSA2048_SIG_B64_LEN = 342;
+        var realisticBytes =
+          parts[0].length + 1 + parts[1].length + 1 + RSA2048_SIG_B64_LEN;
+        var sizeStat =
+          '<div class="jwt-size-stat">' +
+          "<b>" +
+          demoBytes.toLocaleString() +
+          " bytes</b> (" +
+          (demoBytes / 1024).toFixed(2) +
+          " KB) this demo token &mdash; header " +
+          parts[0].length +
+          " / payload " +
+          parts[1].length +
+          " / signature " +
+          parts[2].length +
+          " (demo HMAC-SHA256)." +
+          "<br>Realistic RSA-2048-signed estimate: <b>" +
+          realisticBytes.toLocaleString() +
+          " bytes</b> (" +
+          (realisticBytes / 1024).toFixed(2) +
+          " KB) &mdash; same header/payload, swapping in a real ~342-byte signature block." +
+          "</div>";
+
         var metaKeys = Object.keys(entry.meta);
         var metaRows = metaKeys.length
           ? '<table class="jwt-userdata-tbl">' +
@@ -1700,6 +1741,7 @@
           '<div class="jwt-str-box">' +
           coloredJwt +
           "</div>" +
+          sizeStat +
           '<div class="jwt-modal-col-hd">User Selected Data</div>' +
           metaRows +
           "</div>" +
@@ -2669,21 +2711,25 @@
         return result;
       }
 
-      // Same as getSelectedSvcList(), but for the pre-consent request_params /
-      // as_token intent JSON specifically: each entry additionally carries the
-      // requested expiration_datetime when usage_type is continuous_with_expire.
-      // (Kept separate from getSelectedSvcList() because Step 3 reuses that one
-      // for the real token creation's service_id_list, which has no per-entry
-      // expiration field -- only a single top-level one on the token itself.)
+      // Same as getSelectedSvcList() -- kept as a separate name for the
+      // pre-consent request_params / as_token intent JSON call sites for
+      // clarity. expiration_datetime for continuous_with_expire is NOT
+      // attached per-entry here; it's a single field at the same level as
+      // usage_type on the enclosing intent object (see intentExpirationField()).
       function getSelectedSvcListForIntent(ds) {
-        var list = getSelectedSvcList(ds);
-        if (cfg.ct !== "continuous_with_expire" || !cfg.expirationDatetime)
-          return list;
-        return list.map(function (s) {
-          return Object.assign({}, s, {
-            expiration_datetime: cfg.expirationDatetime,
-          });
-        });
+        return getSelectedSvcList(ds);
+      }
+
+      // expiration_datetime for continuous_with_expire lives at the same
+      // level as usage_type in the pre-consent intent (request_params /
+      // as_token's embedded service_extension[0] JSON) -- one shared value
+      // for the whole intent, not per data_service_list entry. Shared/global
+      // scope since it's used from both buildStep2() and buildStep3Inner().
+      function intentExpirationField() {
+        if (cfg.ct === "continuous_with_expire" && cfg.expirationDatetime) {
+          return { expiration_datetime: cfg.expirationDatetime };
+        }
+        return {};
       }
 
       function getAllSelectedSvcList() {
@@ -3225,6 +3271,7 @@
                   usage_type: cfg.ct,
                   data_service_list: getSelectedSvcListForIntent(ds),
                 },
+                intentExpirationField(),
                 preConsentExtraParams(ds),
               ),
             ),
@@ -3327,6 +3374,7 @@
                     usage_type: cfg.ct,
                     data_service_list: getSelectedSvcListForIntent(ds),
                   },
+                  intentExpirationField(),
                   preConsentExtraParams(ds),
                 ),
               ),
@@ -3364,11 +3412,16 @@
                   service_id: "900.complete_consent_001",
                   service_version: "v1",
                   service_extension: [
-                    JSON.stringify({
-                      token_objective: cfg.tokenObjective,
-                      usage_type: cfg.ct,
-                      data_service_list: getSelectedSvcListForIntent(ds),
-                    }),
+                    JSON.stringify(
+                      Object.assign(
+                        {
+                          token_objective: cfg.tokenObjective,
+                          usage_type: cfg.ct,
+                          data_service_list: getSelectedSvcListForIntent(ds),
+                        },
+                        intentExpirationField(),
+                      ),
+                    ),
                   ],
                 },
               ],
@@ -3508,11 +3561,16 @@
                   service_id: "900.complete_consent_001",
                   service_version: "v1",
                   service_extension: [
-                    JSON.stringify({
-                      token_objective: cfg.tokenObjective,
-                      usage_type: cfg.ct,
-                      data_service_list: getSelectedSvcListForIntent(ds),
-                    }),
+                    JSON.stringify(
+                      Object.assign(
+                        {
+                          token_objective: cfg.tokenObjective,
+                          usage_type: cfg.ct,
+                          data_service_list: getSelectedSvcListForIntent(ds),
+                        },
+                        intentExpirationField(),
+                      ),
+                    ),
                   ],
                 },
               ],
@@ -3920,11 +3978,16 @@
               service_id: "900.complete_consent_001",
               service_version: "v1",
               service_extension: [
-                JSON.stringify({
-                  token_objective: cfg.tokenObjective,
-                  usage_type: cfg.ct,
-                  data_service_list: getSelectedSvcListForIntent(ds),
-                }),
+                JSON.stringify(
+                  Object.assign(
+                    {
+                      token_objective: cfg.tokenObjective,
+                      usage_type: cfg.ct,
+                      data_service_list: getSelectedSvcListForIntent(ds),
+                    },
+                    intentExpirationField(),
+                  ),
+                ),
               ],
             },
           ],
