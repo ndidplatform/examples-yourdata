@@ -174,8 +174,8 @@ const tokenAccountMap = new Map<string, SubIdentity>();
 // visible_identifier shown at pre-consent (below) is derived from this via
 // maskAccountNumber(), so the two can never drift apart.
 const ACCOUNT_REAL_NUMBER: Record<string, string> = {
-  'beta-dep-c1d2e3f4': '987-654-9001',
-  'beta-dep-g5h6i7j8': '876-543-9002',
+  'beta-dep-c1d2e3f4': '9876549001',
+  'beta-dep-g5h6i7j8': '8765439002',
 };
 
 function nowSeconds(): number {
@@ -225,6 +225,24 @@ function parseServiceIdLevel(
     level: match[1] as 'basic' | 'detail',
     lookbackMonths: match[2] === '002' ? 12 : 6,
   };
+}
+
+/**
+ * Resolve the account a consent_token was issued for. Prefers our own
+ * tokenAccountMap cache (populated when this same process handled
+ * complete-consent for it), falling back to the token's own embedded
+ * sub_identity_list — safe to trust because the platform already verified
+ * this token's signature and content before ever invoking our service_url
+ * (see the guide's §10.2 validation checklist). This fallback matters for
+ * any consent_token this exact process didn't itself issue: a server
+ * restart, or a token created via a separate complete-consent call (e.g.
+ * an isolated conformance/SIT test).
+ */
+function resolveTokenAccount(authorization: string): SubIdentity | undefined {
+  const cached = tokenAccountMap.get(authorization);
+  if (cached) return cached;
+  const payload = decodeTokenPayload(authorization) as { sub_identity_list?: SubIdentity[] } | null;
+  return payload?.sub_identity_list?.[0];
 }
 
 function validateToken(authorization: string): { error_code: number; error_message: string } | null {
@@ -650,7 +668,7 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
       }
 
       const extension = serviceLevel?.level === 'detail' ? 'transactions_detail' : 'transactions_basic';
-      const tokenAccount = tokenAccountMap.get(data.authorization);
+      const tokenAccount = resolveTokenAccount(data.authorization);
       if (!tokenAccount) {
         await API.sendYourDataError({
           request_id,

@@ -64,10 +64,10 @@ POST /v7/yourdata/rp/data_decryption_key_retry_requests
 - **Tokens are never exposed to the client.** The RP keeps all `as_token` and `consent_token` values server-side, keyed by `(pre_consent_request_id, as_node_id)` and `(account_id, service_id)` respectively.
 - **One pre-consent token per (dataset × AS).** Each AS registered for a dataset receives its own callback and issues its own `as_token`.
 - **One complete-consent call per pre-consent token.** The number of complete-consent calls = number of (dataset × AS) combinations, not number of unique AS nodes.
-- **`identifier` unmasking is dataset-specific.** At pre-consent, `identifier` in `sub_identity_list` is always an AS-generated opaque ID. Whether it becomes the real, unmasked value at complete-consent depends on the dataset (see NDID's "Response Schema for pre_consent" reference):
-  - **Deposit / Loan** — `identifier` changes to the real `account_id` at complete-consent.
-  - **Card Payment** — `identifier` stays the same opaque/masked value even in the `consent_token`, never unmasked (PCI-DSS).
-  - **e-Money** — `identifier` is already the AS's internal customer/wallet ID from pre-consent onward; there's no separate "unmasked" value to switch to.
+- **Unmasking is dataset-specific, and applies to `identifier` AND `visible_identifier` together.** At pre-consent, both `identifier` (an AS-generated opaque ID) and `visible_identifier` (a masked display string) are masked/opaque in `sub_identity_list`. Whether they become the real, unmasked account value at complete-consent depends on the dataset (see NDID's "Response Schema for pre_consent" reference):
+  - **Deposit / Loan** — both `identifier` **and** `visible_identifier` change to the same real `account_id` at complete-consent (§9.3) — there's nothing left to mask once the AS is creating a token for a specific, already-confirmed account.
+  - **Card Payment** — neither field changes; `identifier` stays the same opaque value and `visible_identifier` stays the same masked BIN, even in the `consent_token` (PCI-DSS).
+  - **e-Money** — `identifier` is already the AS's internal customer/wallet ID from pre-consent onward, and `visible_identifier` stays masked; there's no separate "unmasked" value to switch to for either.
   - **Namespace per dataset:** `account_id` (Deposit, Loan), `card_number` (Card Payment), `e_wallet_id` (e-Money) — not `account_id` for e-Money.
 - **`request_timeout` is per-call, not cumulative.** Every step that carries a `request_timeout` (pre-consent, complete-consent, request-data) times out **independently** — it is not a shared budget across the end-to-end flow. A slow complete-consent call does not eat into the request-data step's timeout, and vice versa. Set each `request_timeout` based on how long that specific step realistically needs.
 
@@ -566,7 +566,7 @@ POST /v7/as/data/req-pre-xxxx/900.pre_consent_deposit_001
 {
   "reference_id": "ndid-data-deposit-as1",
   "callback_url": "http://as-cb:6002/as/response",
-  "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"***-***-1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}],\"authorization\":\"<as_token JWT>\"}"
+  "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"******1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}],\"authorization\":\"<as_token JWT>\"}"
 }
 ```
 
@@ -634,7 +634,7 @@ GET /v7/rp/request_data/req-pre-xxxx
     "signature_signing_algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
     "signature_signing_key_version": 1,
     "data_salt": "<salt>",
-    "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"***-***-1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]}"
+    "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"******1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]}"
   },
   {
     "source_node_id": "as2",
@@ -643,7 +643,7 @@ GET /v7/rp/request_data/req-pre-xxxx
     "signature_signing_algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
     "signature_signing_key_version": 1,
     "data_salt": "<salt>",
-    "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"beta-dep-c9d0e1f2\",\"visible_identifier\":\"***-***-9001\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Beta Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]}"
+    "data": "{\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\",\"sub_identity_list\":[{\"namespace\":\"account_id\",\"identifier\":\"beta-dep-c9d0e1f2\",\"visible_identifier\":\"******9001\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Beta Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]}"
   }
 ]
 ```
@@ -678,7 +678,7 @@ POST /v7/yourdata/rp/requests
   "callback_url": "http://rp-cb:6001/yourdata/rp/request_status_update",
   "namespace": "citizen_id",
   "identifier": "1234567890123",
-  "request_params": "[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"***-***-1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]",
+  "request_params": "[{\"namespace\":\"account_id\",\"identifier\":\"alpha-dep-a1b2c3d4\",\"visible_identifier\":\"******1234\",\"identifier_extension\":\"{\\\"accountSubType\\\":\\\"CURRENT\\\",\\\"institutionName\\\":\\\"Alpha Bank\\\",\\\"accountStatus\\\":\\\"ACTIVE\\\",\\\"accountName\\\":\\\"John Doe\\\"}\"}]",
   "authorization": "<as_token for (Deposit x as1)>",
   "request_timeout": 900
 }
@@ -749,15 +749,15 @@ Token create body (token 1/2, `one_time`):
   "sub_identity_list": [
     {
       "namespace": "account_id",
-      "identifier": "123-456-1234",
-      "visible_identifier": "***-***-1234",
+      "identifier": "1234561234",
+      "visible_identifier": "1234561234",
       "identifier_extension": "{\"accountSubType\":\"CURRENT\",\"institutionName\":\"Alpha Bank\",\"accountStatus\":\"ACTIVE\",\"accountName\":\"John Doe\"}"
     }
   ]
 }
 ```
 
-> `identifier` in `sub_identity_list` is the **real account number** — not the opaque pre-consent identifier. This unmasking only applies to **Deposit and Loan**; Card Payment keeps the same opaque/masked value (PCI-DSS), and e-Money's identifier was already the AS's internal ID from pre-consent onward (see Key Design Principles above).  
+> **Both `identifier` and `visible_identifier` in `sub_identity_list` become the real account number** — not the opaque pre-consent identifier, and not the masked display string either. Masking only matters pre-consent, before the user has confirmed a specific account (§8.6/§8.8); once the AS is creating the actual consent_token for a confirmed account, there's nothing left to mask, so both fields carry the same real value. This unmasking only applies to **Deposit and Loan**; Card Payment keeps the same opaque/masked value for `identifier` and the same masked `visible_identifier` (PCI-DSS) — neither field changes — and e-Money's `identifier` was already the AS's internal ID from pre-consent onward with `visible_identifier` staying masked (see Key Design Principles above).  
 > `source_request_id_list` must include **both** the pre-consent request_id and this complete-consent request_id.  
 > `expiration_datetime` is **required for every `usage_type` except `continuous_no_expire`** — token creation fails with `TOKEN_MUST_HAVE_EXPIRATION_TIME` otherwise. Give `one_time` consent_tokens a real redemption window — **24 hours** (the industry-standard window for this token type) — to actually be redeemed via Step 4, not just a few minutes.
 >
@@ -779,7 +779,7 @@ Token create body (token 1, `continuous_with_expire`, all services):
     { "service_id": "900.deposit_balance_001", "service_version": "v1", "service_extension": [] }
   ],
   "sub_identity_list": [
-    { "namespace": "account_id", "identifier": "123-456-1234", "visible_identifier": "***-***-1234", "identifier_extension": "{\"accountSubType\":\"CURRENT\",\"institutionName\":\"Alpha Bank\",\"accountStatus\":\"ACTIVE\",\"accountName\":\"John Doe\"}" }
+    { "namespace": "account_id", "identifier": "1234561234", "visible_identifier": "1234561234", "identifier_extension": "{\"accountSubType\":\"CURRENT\",\"institutionName\":\"Alpha Bank\",\"accountStatus\":\"ACTIVE\",\"accountName\":\"John Doe\"}" }
   ]
 }
 ```
@@ -933,7 +933,7 @@ Example response body for `900.deposit_transactions_basic_001`:
 ```json
 {
   "request_id": "req-data-xxxx",
-  "data": "{\"accountId\":\"123-456-1234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
+  "data": "{\"accountId\":\"1234561234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
 }
 ```
 
@@ -1019,7 +1019,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "signature_signing_algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
   "signature_signing_key_version": 1,
   "data_salt": "<salt>",
-  "data": "{\"accountId\":\"123-456-1234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
+  "data": "{\"accountId\":\"1234561234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
 }
 ```
 > See §9.5 for what `source_signature`/`signature_signing_algorithm`/`signature_signing_key_version`/`data_salt` are for — they're present on every `request_data` response.
@@ -1032,7 +1032,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 ```json
 {
   "institutionName": "ABCB",
-  "accountId": "123-456-1234",
+  "accountId": "1234561234",
   "ownerType": "INDIVIDUAL",
   "accountType": "DEPOSIT",
   "accountSubType": "SAVINGS",
@@ -1049,7 +1049,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Deposit — Balance
 ```json
 {
-  "accountId": "123-456-1234",
+  "accountId": "1234561234",
   "lastLedgerBalanceAmount": 85000.50,
   "lastLedgerBalanceCurrency": "THB",
   "lastAvailableBalanceAmount": 85000.50,
@@ -1062,7 +1062,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Deposit — Transactions (Basic)
 ```json
 {
-  "accountId": "123-456-1234",
+  "accountId": "1234561234",
   "statementEntries": [
     {
       "transactionId": "TXN-A-001",
@@ -1090,9 +1090,9 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 {
   "transactionRef": "REF-0001",
   "transactionInformation": "Salary payment",
-  "debtorAccountId": "111-222-3333",
+  "debtorAccountId": "1112223333",
   "debtorAccountName": "ABC COMPANY LTD",
-  "creditorAccountId": "123-456-1234",
+  "creditorAccountId": "1234561234",
   "creditorAccountName": "Mr. Somchai Jaidee",
   "sendingInstitutionCode": "XYZB",
   "sendingInstitutionName": "XYZ Bank",
@@ -1109,7 +1109,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "creationDateTime": "2026-07-01T00:00:00+07:00",
   "statementId": "STMT-2026-06",
   "institutionName": "ABCB",
-  "accountId": "123-456-1234",
+  "accountId": "1234561234",
   "ownerType": "INDIVIDUAL",
   "accountType": "DEPOSIT",
   "accountSubType": "SAVINGS",
@@ -1160,7 +1160,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Card Payment — Account *(single response — no Basic/Detail)*
 ```json
 {
-  "cardNumber": "****-****-****-1111",
+  "cardNumber": "411111XXXXXX1111",
   "cardName": "Mr. Somchai Jaidee",
   "cardType": "CREDIT",
   "issuerName": "ABCB",
@@ -1176,7 +1176,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Card Payment — Outstanding Balance
 ```json
 {
-  "cardNumber": "****-****-****-1111",
+  "cardNumber": "411111XXXXXX1111",
   "creditInfo": [
     {
       "creditLimitAmount": 100000,
@@ -1194,7 +1194,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Card Payment — Transactions (Basic)
 ```json
 {
-  "cardNumber": "****-****-****-1111",
+  "cardNumber": "411111XXXXXX1111",
   "transactionEntries": [
     {
       "transactionId": "CC-001",
@@ -1219,7 +1219,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Card Payment — Scheduled Payment *(single response — no Basic/Detail)*
 ```json
 {
-  "cardNumber": "****-****-****-1111",
+  "cardNumber": "411111XXXXXX1111",
   "creditInfo": [
     {
       "outstandingBalanceAmount": 12500,
@@ -1240,7 +1240,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Card Payment — Statement *(single response — no Basic/Detail)*
 ```json
 {
-  "cardNumber": "****-****-****-1111",
+  "cardNumber": "411111XXXXXX1111",
   "cardName": "Mr. Somchai Jaidee",
   "cardType": "CREDIT",
   "issuerName": "ABCB",
@@ -1276,7 +1276,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Loan — Account *(single response — no Basic/Detail; no Transactions endpoint exists for Loan)*
 ```json
 {
-  "accountId": "***-***-9900",
+  "accountId": "5678909900",
   "accountName": "Mr. Somchai Jaidee",
   "institutionCode": "0004000000000",
   "institutionName": "ABCB",
@@ -1296,7 +1296,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Loan — Outstanding Balance
 ```json
 {
-  "accountId": "***-***-9900",
+  "accountId": "5678909900",
   "contractRemainingAmount": 72000,
   "contractRemainingCurrency": "THB",
   "outstandingBalanceAmount": 72000,
@@ -1310,7 +1310,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### Loan — Statement *(single response — no Basic/Detail)*
 ```json
 {
-  "accountId": "***-***-9900",
+  "accountId": "5678909900",
   "accountName": "Mr. Somchai Jaidee",
   "institutionCode": "0004000000000",
   "institutionName": "ABCB",
@@ -1354,7 +1354,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 ```json
 {
   "institutionName": "ABCB",
-  "eWalletId": "***-***-0010",
+  "eWalletId": "081234XXXX",
   "nickName": "My Prepaid Wallet",
   "ownerType": "INDIVIDUAL",
   "accountStatus": "ACTIVE",
@@ -1366,7 +1366,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### e-Money — Balance
 ```json
 {
-  "eWalletId": "***-***-0010",
+  "eWalletId": "081234XXXX",
   "balanceInfo": [
     {
       "lastLedgerBalanceAmount": 1500,
@@ -1379,7 +1379,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 #### e-Money — Transactions (Basic)
 ```json
 {
-  "eWalletId": "***-***-0010",
+  "eWalletId": "081234XXXX",
   "transactionEntries": [
     {
       "transactionId": "EM-001",
@@ -1410,7 +1410,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "creationDateTime": "2026-07-01T00:00:00+07:00",
   "statementId": "STMT-2026-06",
   "institutionName": "ABCB",
-  "eWalletId": "***-***-0010",
+  "eWalletId": "081234XXXX",
   "nickName": "My Prepaid Wallet",
   "ownerType": "INDIVIDUAL",
   "accountStatus": "ACTIVE",
@@ -1604,18 +1604,20 @@ Callback → `POST /rp/request/{reference_id}`:
 
 ### Mock Accounts per (dataset × AS)
 
+> "Real" below is what **both** `identifier` and `visible_identifier` become at complete-consent (§9.3) for datasets that unmask (Deposit, Loan) — not just `identifier`. For datasets that don't unmask (Card Payment, e-Money), neither field changes, so no separate "Real" column is shown for them.
+
 #### Deposit — as1 (Alpha Bank)
 
 | Opaque Identifier | Masked | Real | Type |
 |---|---|---|---|
-| `alpha-dep-a1b2c3d4` | `***-***-1234` | `123-456-1234` | CurrentAccount |
-| `alpha-dep-e5f6a7b8` | `***-***-5678` | `234-567-5678` | Savings |
+| `alpha-dep-a1b2c3d4` | `******1234` | `1234561234` | CurrentAccount |
+| `alpha-dep-e5f6a7b8` | `******5678` | `2345675678` | Savings |
 
 #### Deposit — as2 (Beta Bank)
 
 | Opaque Identifier | Masked | Real | Type |
 |---|---|---|---|
-| `beta-dep-c9d0e1f2` | `***-***-9001` | `345-678-9001` | CurrentAccount |
+| `beta-dep-c9d0e1f2` | `******9001` | `3456789001` | CurrentAccount |
 
 #### Card Payment — as1 (Alpha Bank)
 
@@ -1623,26 +1625,26 @@ Callback → `POST /rp/request/{reference_id}`:
 
 | Opaque Identifier | Masked (`visible_identifier`) | At Complete-Consent | Type |
 |---|---|---|---|
-| `alpha-card-x1y2z3w4` | `4111-11XX-XXXX-1111` | `alpha-card-x1y2z3w4` (unchanged) | VISA |
-| `alpha-card-m5n6p7q8` | `5500-00XX-XXXX-2222` | `alpha-card-m5n6p7q8` (unchanged) | Mastercard |
+| `alpha-card-x1y2z3w4` | `411111XXXXXX1111` | `alpha-card-x1y2z3w4` (unchanged) | VISA |
+| `alpha-card-m5n6p7q8` | `550000XXXXXX2222` | `alpha-card-m5n6p7q8` (unchanged) | Mastercard |
 
 #### Card Payment — as2 (Beta Bank)
 
 | Opaque Identifier | Masked (`visible_identifier`) | At Complete-Consent | Type |
 |---|---|---|---|
-| `beta-card-r5s6t7u8` | `4111-22XX-XXXX-3333` | `beta-card-r5s6t7u8` (unchanged) | VISA |
+| `beta-card-r5s6t7u8` | `411122XXXXXX3333` | `beta-card-r5s6t7u8` (unchanged) | VISA |
 
 #### Loan — as1 (Alpha Bank)
 
 | Opaque Identifier | Masked | Real | Type |
 |---|---|---|---|
-| `alpha-loan-l1m2n3o4` | `***-***-9900` | `***-***-9900` | PersonalLoan |
+| `alpha-loan-l1m2n3o4` | `******9900` | `5678909900` | PersonalLoan |
 
 #### Loan — as2 (Beta Bank)
 
 | Opaque Identifier | Masked | Real | Type |
 |---|---|---|---|
-| `beta-loan-p5q6r7s8` | `***-***-9901` | `***-***-9901` | PersonalLoan |
+| `beta-loan-p5q6r7s8` | `******9901` | `6789019901` | PersonalLoan |
 
 #### e-Money — as1 (Alpha Bank)
 
@@ -1650,13 +1652,13 @@ Namespace is **`e_wallet_id`** (not `account_id`). `identifier` is already the A
 
 | Opaque Identifier | Masked (`visible_identifier`) | At Complete-Consent | Type |
 |---|---|---|---|
-| `alpha-em-p1q2r3s4` | `081-234XXXX` | `alpha-em-p1q2r3s4` (unchanged) | Prepaid |
+| `dbe195854efe3f92` | `081234XXXX` | `dbe195854efe3f92` (unchanged) | Prepaid |
 
 #### e-Money — as2 (Beta Bank)
 
 | Opaque Identifier | Masked (`visible_identifier`) | At Complete-Consent | Type |
 |---|---|---|---|
-| `beta-em-u9v0w1x2` | `089-567XXXX` | `beta-em-u9v0w1x2` (unchanged) | Prepaid |
+| `446a54fa7158df52` | `089567XXXX` | `446a54fa7158df52` (unchanged) | Prepaid |
 
 ### Account Selection Key Format
 

@@ -180,10 +180,10 @@ const tokenAccountMap = new Map<string, SubIdentity>();
 // visible_identifier shown at pre-consent (below) is derived from this via
 // maskAccountNumber(), so the two can never drift apart.
 const ACCOUNT_REAL_NUMBER: Record<string, string> = {
-  'alpha-dep-a1b2c3d4': '123-456-1234',
-  'alpha-dep-e5f6a7b8': '234-567-5678',
-  'alpha-card-x1y2z3w4': '4111-1111-1111-1111',
-  'alpha-card-m5n6p7q8': '5500-0055-5555-2222',
+  'alpha-dep-a1b2c3d4': '1234561234',
+  'alpha-dep-e5f6a7b8': '2345675678',
+  'alpha-card-x1y2z3w4': '4111111111111111',
+  'alpha-card-m5n6p7q8': '5500005555552222',
 };
 
 function nowSeconds(): number {
@@ -238,6 +238,24 @@ function parseServiceIdLevel(
     level: match[1] as 'basic' | 'detail',
     lookbackMonths: match[2] === '002' ? 12 : 6,
   };
+}
+
+/**
+ * Resolve the account a consent_token was issued for. Prefers our own
+ * tokenAccountMap cache (populated when this same process handled
+ * complete-consent for it), falling back to the token's own embedded
+ * sub_identity_list — safe to trust because the platform already verified
+ * this token's signature and content before ever invoking our service_url
+ * (see the guide's §10.2 validation checklist). This fallback matters for
+ * any consent_token this exact process didn't itself issue: a server
+ * restart, or a token created via a separate complete-consent call (e.g.
+ * an isolated conformance/SIT test).
+ */
+function resolveTokenAccount(authorization: string): SubIdentity | undefined {
+  const cached = tokenAccountMap.get(authorization);
+  if (cached) return cached;
+  const payload = decodeTokenPayload(authorization) as { sub_identity_list?: SubIdentity[] } | null;
+  return payload?.sub_identity_list?.[0];
 }
 
 /**
@@ -696,7 +714,7 @@ async function handleYourDataRequest(
       }
 
       const extension = serviceLevel?.level === 'detail' ? 'transactions_detail' : 'transactions_basic';
-      const tokenAccount = tokenAccountMap.get(data.authorization);
+      const tokenAccount = resolveTokenAccount(data.authorization);
       if (!tokenAccount) {
         await API.sendYourDataError({
           request_id,
