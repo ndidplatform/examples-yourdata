@@ -2920,7 +2920,7 @@
             {
               namespace: "account_id",
               identifier: "alpha-dep-a1b2c3d4",
-              visible_identifier: "XXX-XXX-1234",
+              visible_identifier: "XXXXXX1234",
               identifier_extension:
                 '{"accountSubType":"CURRENT","institutionName":"Alpha Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Current Account",
@@ -2928,7 +2928,7 @@
             {
               namespace: "account_id",
               identifier: "alpha-dep-e5f6a7b8",
-              visible_identifier: "XXX-XXX-5678",
+              visible_identifier: "XXXXXX5678",
               identifier_extension:
                 '{"accountSubType":"SAVINGS","institutionName":"Alpha Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Savings Account",
@@ -2938,7 +2938,7 @@
             {
               namespace: "account_id",
               identifier: "beta-dep-c9d0e1f2",
-              visible_identifier: "XXX-XXX-9001",
+              visible_identifier: "XXXXXX9001",
               identifier_extension:
                 '{"accountSubType":"CURRENT","institutionName":"Beta Bank","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Current Account",
@@ -2964,7 +2964,7 @@
             {
               namespace: "card_number",
               identifier: "alpha-card-x1y2z3w4",
-              visible_identifier: "4111-11XX-XXXX-1111",
+              visible_identifier: "411111XXXXXX1111",
               identifier_extension:
                 '{"issuerName":"Alpha Bank","cardStatus":"ACTIVE","isPrimary":true,"cardType":"CREDIT"}',
               label: "VISA Card",
@@ -2972,7 +2972,7 @@
             {
               namespace: "card_number",
               identifier: "alpha-card-m5n6p7q8",
-              visible_identifier: "5500-00XX-XXXX-2222",
+              visible_identifier: "550000XXXXXX2222",
               identifier_extension:
                 '{"issuerName":"Alpha Bank","cardStatus":"ACTIVE","isPrimary":false,"cardType":"CREDIT"}',
               label: "Mastercard",
@@ -2982,7 +2982,7 @@
             {
               namespace: "card_number",
               identifier: "beta-card-r5s6t7u8",
-              visible_identifier: "4111-22XX-XXXX-3333",
+              visible_identifier: "411122XXXXXX3333",
               identifier_extension:
                 '{"issuerName":"Beta Bank","cardStatus":"ACTIVE","isPrimary":true,"cardType":"CREDIT"}',
               label: "VISA Card",
@@ -2997,7 +2997,7 @@
             {
               namespace: "account_id",
               identifier: "alpha-loan-l1m2n3o4",
-              visible_identifier: "XXX-XXX-9900",
+              visible_identifier: "XXXXXX9900",
               identifier_extension:
                 '{"accountName":"Mr. Somchai Jaidee","institutionCode":"0004000000000","institutionName":"Alpha Bank","loanTypeCode":"2003200002","loanTypePersonalRegCode":"01"}',
               label: "Personal Loan",
@@ -3007,7 +3007,7 @@
             {
               namespace: "account_id",
               identifier: "beta-loan-p5q6r7s8",
-              visible_identifier: "XXX-XXX-9901",
+              visible_identifier: "XXXXXX9901",
               identifier_extension:
                 '{"accountName":"Mr. Somchai Jaidee","institutionCode":"0004000000000","institutionName":"Beta Bank","loanTypeCode":"2003200002","loanTypePersonalRegCode":"01"}',
               label: "Personal Loan",
@@ -3023,8 +3023,8 @@
           as1: [
             {
               namespace: "e_wallet_id",
-              identifier: "alpha-em-p1q2r3s4",
-              visible_identifier: "081-234XXXX",
+              identifier: "dbe195854efe3f92",
+              visible_identifier: "081234XXXX",
               identifier_extension:
                 '{"institutionName":"Alpha Wallet","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Prepaid Wallet",
@@ -3033,8 +3033,8 @@
           as2: [
             {
               namespace: "e_wallet_id",
-              identifier: "beta-em-u9v0w1x2",
-              visible_identifier: "089-567XXXX",
+              identifier: "446a54fa7158df52",
+              visible_identifier: "089567XXXX",
               identifier_extension:
                 '{"institutionName":"Beta Wallet","accountStatus":"ACTIVE","accountName":"Mr. Somchai Jaidee"}',
               label: "Prepaid Wallet",
@@ -3050,11 +3050,11 @@
       // identifier is already the AS's internal customer id from pre-consent
       // onward -- neither has an entry here (see realId fallback below).
       var REAL_ACCOUNT_ID = {
-        "alpha-dep-a1b2c3d4": "123-456-1234",
-        "alpha-dep-e5f6a7b8": "234-567-5678",
-        "beta-dep-c9d0e1f2": "345-678-9001",
-        "alpha-loan-l1m2n3o4": "XXX-XXX-9900",
-        "beta-loan-p5q6r7s8": "XXX-XXX-9901",
+        "alpha-dep-a1b2c3d4": "1234561234",
+        "alpha-dep-e5f6a7b8": "2345675678",
+        "beta-dep-c9d0e1f2": "3456789001",
+        "alpha-loan-l1m2n3o4": "5678909900",
+        "beta-loan-p5q6r7s8": "6789019901",
       };
 
       // selectedAccounts: key = 'ds|asId|identifier' -> bool
@@ -4057,9 +4057,14 @@
           );
           tokenCalls.forEach(function (tc, i) {
             // Datasets without a REAL_ACCOUNT_ID entry (Card Payment, e-Money) don't
-            // unmask -- keep the same opaque pre-consent identifier, never the
-            // masked visible_identifier (that's a display string, not an API value).
+            // unmask -- keep the same opaque pre-consent identifier and the masked
+            // visible_identifier unchanged. Deposit/Loan DO unmask at complete-consent
+            // -- both identifier AND visible_identifier become the real account id,
+            // not just identifier (the masked display string is only meaningful
+            // pre-consent, before the user has confirmed a specific account).
             var realId = REAL_ACCOUNT_ID[tc.acc.identifier] || tc.acc.identifier;
+            var realVisibleId =
+              REAL_ACCOUNT_ID[tc.acc.identifier] || tc.acc.visible_identifier;
             var tokenReq = {
               requester_node_id: "rp1",
               as_node_id: asId,
@@ -4078,7 +4083,7 @@
                 {
                   namespace: tc.acc.namespace,
                   identifier: realId,
-                  visible_identifier: tc.acc.visible_identifier,
+                  visible_identifier: realVisibleId,
                   identifier_extension: tc.acc.identifier_extension,
                 },
               ],
@@ -4467,9 +4472,9 @@
           // payer is the debtor/sending side.
           entries[0].transactionRef = "REF-0001";
           entries[0].transactionInformation = "Salary payment";
-          entries[0].debtorAccountId = "111-222-3333";
+          entries[0].debtorAccountId = "1112223333";
           entries[0].debtorAccountName = "ABC COMPANY LTD";
-          entries[0].creditorAccountId = "123-456-1234";
+          entries[0].creditorAccountId = "1234561234";
           entries[0].creditorAccountName = "Mr. Somchai Jaidee";
           entries[0].sendingInstitutionCode = "XYZB";
           entries[0].sendingInstitutionName = "XYZ Bank";
@@ -4480,9 +4485,9 @@
           // is the creditor/receiving side.
           entries[1].transactionRef = "REF-0002";
           entries[1].transactionInformation = "Utilities";
-          entries[1].debtorAccountId = "123-456-1234";
+          entries[1].debtorAccountId = "1234561234";
           entries[1].debtorAccountName = "Mr. Somchai Jaidee";
-          entries[1].creditorAccountId = "444-555-6666";
+          entries[1].creditorAccountId = "4445556666";
           entries[1].creditorAccountName = "KASIKORN BANK";
           entries[1].sendingInstitutionCode = "ABCB";
           entries[1].sendingInstitutionName = "ABC Bank";
@@ -4490,7 +4495,7 @@
           entries[1].receivingInstitutionName = "Kasikorn Bank";
           entries[1].merchantName = "MEA - Electricity Bill";
         }
-        return { accountId: "123-456-1234", statementEntries: entries };
+        return { accountId: "1234561234", statementEntries: entries };
       }
       function depositStatementMock(hasDetail) {
         var entry = {
@@ -4516,9 +4521,9 @@
         if (hasDetail) {
           entry.transactionRef = "REF-0001";
           entry.transactionInformation = "Salary payment";
-          entry.debtorAccountId = "111-222-3333";
+          entry.debtorAccountId = "1112223333";
           entry.debtorAccountName = "ABC COMPANY LTD";
-          entry.creditorAccountId = "123-456-1234";
+          entry.creditorAccountId = "1234561234";
           entry.creditorAccountName = "Mr. Somchai Jaidee";
           entry.sendingInstitutionCode = "XYZB";
           entry.sendingInstitutionName = "XYZ Bank";
@@ -4530,7 +4535,7 @@
           creationDateTime: "2026-07-01T00:00:00+07:00",
           statementId: "STMT-2026-06",
           institutionName: "ABCB",
-          accountId: "123-456-1234",
+          accountId: "1234561234",
           ownerType: "INDIVIDUAL",
           accountType: "DEPOSIT",
           accountSubType: "SAVINGS",
@@ -4582,7 +4587,7 @@
           t[1].transactionDescription = "GRAB FOOD";
         }
         return {
-          cardNumber: "XXXX-XXXX-XXXX-1111",
+          cardNumber: "411111XXXXXX1111",
           transactionEntries: t,
           auxiliaryReferenceId: "aux-cardpayment-transactions-001",
         };
@@ -4603,7 +4608,7 @@
           amountCurrency: "THB",
         };
         if (hasDetail) entry.transactionInformation = "Bill payment - utilities";
-        return { eWalletId: "XXX-XXX-0010", transactionEntries: [entry] };
+        return { eWalletId: "081234XXXX", transactionEntries: [entry] };
       }
       function emoneyStatementMock(hasDetail) {
         var entry = {
@@ -4629,7 +4634,7 @@
           creationDateTime: "2026-07-01T00:00:00+07:00",
           statementId: "STMT-2026-06",
           institutionName: "ABCB",
-          eWalletId: "XXX-XXX-0010",
+          eWalletId: "081234XXXX",
           nickName: "My Prepaid Wallet",
           ownerType: "INDIVIDUAL",
           accountStatus: "ACTIVE",
@@ -4652,7 +4657,7 @@
         "900.deposit_account_001": function () {
           return {
             institutionName: "ABCB",
-            accountId: "123-456-1234",
+            accountId: "1234561234",
             ownerType: "INDIVIDUAL",
             accountType: "DEPOSIT",
             accountSubType: "SAVINGS",
@@ -4666,7 +4671,7 @@
         },
         "900.deposit_balance_001": function () {
           return {
-            accountId: "123-456-1234",
+            accountId: "1234561234",
             lastLedgerBalanceAmount: 85000.5,
             lastLedgerBalanceCurrency: "THB",
             lastAvailableBalanceAmount: 85000.5,
@@ -4701,7 +4706,7 @@
         },
         "900.cardpayment_account_001": function () {
           return {
-            cardNumber: "XXXX-XXXX-XXXX-1111",
+            cardNumber: "411111XXXXXX1111",
             cardName: "Mr. Somchai Jaidee",
             cardType: "CREDIT",
             issuerName: "ABCB",
@@ -4715,7 +4720,7 @@
         },
         "900.cardpayment_outstandingbalance_001": function () {
           return {
-            cardNumber: "XXXX-XXXX-XXXX-1111",
+            cardNumber: "411111XXXXXX1111",
             creditInfo: [
               {
                 creditLimitAmount: 100000,
@@ -4743,7 +4748,7 @@
         },
         "900.cardpayment_scheduledpayment_001": function () {
           return {
-            cardNumber: "XXXX-XXXX-XXXX-1111",
+            cardNumber: "411111XXXXXX1111",
             creditInfo: [
               {
                 outstandingBalanceAmount: 12500,
@@ -4762,7 +4767,7 @@
         },
         "900.cardpayment_statement_001": function () {
           return {
-            cardNumber: "XXXX-XXXX-XXXX-1111",
+            cardNumber: "411111XXXXXX1111",
             cardName: "Mr. Somchai Jaidee",
             cardType: "CREDIT",
             issuerName: "ABCB",
@@ -4806,7 +4811,7 @@
         },
         "900.loan_account_001": function () {
           return {
-            accountId: "XXX-XXX-9900",
+            accountId: "5678909900",
             accountName: "Mr. Somchai Jaidee",
             institutionCode: "0004000000000",
             institutionName: "ABCB",
@@ -4824,7 +4829,7 @@
         },
         "900.loan_outstandingbalance_001": function () {
           return {
-            accountId: "XXX-XXX-9900",
+            accountId: "5678909900",
             contractRemainingAmount: 72000,
             contractRemainingCurrency: "THB",
             outstandingBalanceAmount: 72000,
@@ -4836,7 +4841,7 @@
         },
         "900.loan_statement_001": function () {
           return {
-            accountId: "XXX-XXX-9900",
+            accountId: "5678909900",
             accountName: "Mr. Somchai Jaidee",
             institutionCode: "0004000000000",
             institutionName: "ABCB",
@@ -4878,7 +4883,7 @@
         "900.emoney_account_001": function () {
           return {
             institutionName: "ABCB",
-            eWalletId: "XXX-XXX-0010",
+            eWalletId: "081234XXXX",
             nickName: "My Prepaid Wallet",
             ownerType: "INDIVIDUAL",
             accountStatus: "ACTIVE",
@@ -4888,7 +4893,7 @@
         },
         "900.emoney_balance_001": function () {
           return {
-            eWalletId: "XXX-XXX-0010",
+            eWalletId: "081234XXXX",
             balanceInfo: [
               {
                 lastLedgerBalanceAmount: 1500,
@@ -4974,6 +4979,8 @@
         // than minting a new one.
         var isOneTimeStep4 = cfg.ct === "one_time";
         var realId4 = REAL_ACCOUNT_ID[firstAcc.identifier] || firstAcc.identifier;
+        var realVisibleId4 =
+          REAL_ACCOUNT_ID[firstAcc.identifier] || firstAcc.visible_identifier;
         var tokenReqSpend4 = {
           requester_node_id: "rp1",
           as_node_id: firstAs,
@@ -5002,7 +5009,7 @@
             {
               namespace: firstAcc.namespace,
               identifier: realId4,
-              visible_identifier: firstAcc.visible_identifier,
+              visible_identifier: realVisibleId4,
               identifier_extension: firstAcc.identifier_extension,
             },
           ],
@@ -5303,7 +5310,7 @@
           var fallbackAs = allActiveAs()[0] || "as1";
           revokeTokens.push({
             asId: fallbackAs,
-            tokenId: "<token_id for XXX-XXX-1234>",
+            tokenId: "<token_id for XXXXXX1234>",
           });
         }
         var revokeTokenIds = revokeTokens.map(function (t) {
