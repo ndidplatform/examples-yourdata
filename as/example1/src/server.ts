@@ -746,14 +746,16 @@ async function handleYourDataRequest(
 
 // ─── Mock Data Helpers ────────────────────────────────────────────────────────
 // Response shapes below follow the published dataset schemas exactly:
-//   Deposit:     https://app.swaggerhub.com/apis/NDID/YourData_Schema_Deposit/1.0.0#/default/getDepositTransactions
-//   Card Payment: https://app.swaggerhub.com/apis/NDID/YourData_Schema_CardPayment/0.5.0#/default/getCreditCardTransactions
+//   Deposit:     https://app.swaggerhub.com/apis/NDID/YourData_Schema_Deposit/1.0.1
+//   Card Payment: https://app.swaggerhub.com/apis/NDID/YourData_Schema_CardPayment/1.0.1
 
 interface DepositTransactionEntry {
   transactionId: string;
   bookingDateTime: string;
   valueDateTime?: string;
-  commonTransactionCode: { domainCode: string; familyCode: string; subFamilyCode: string };
+  domainCode: string;
+  familyCode: string;
+  subFamilyCode: string;
   proprietaryBankTransactionCode: string;
   proprietaryBankTransactionDescription: string;
   creditDebitIndicator: 'CRDT' | 'DBIT';
@@ -772,15 +774,15 @@ interface DepositTransactionEntry {
 const DEPOSIT_MOCK: Record<string, { transactions: DepositTransactionEntry[] }> = {
   'alpha-dep-a1b2c3d4': {
     transactions: [
-      { transactionId: 'TXN-A-001', bookingDateTime: '2026-06-01T00:00:00+07:00', valueDateTime: '2026-06-01T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA' }, proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 5000.00, amountCurrency: 'THB', transactionInformation: 'Salary payment', debtorAccountName: 'ABC COMPANY LTD' },
-      { transactionId: 'TXN-A-002', bookingDateTime: '2026-06-10T00:00:00+07:00', valueDateTime: '2026-06-10T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT' }, proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 1200.00, amountCurrency: 'THB', transactionInformation: 'Bill payment - utilities', creditorAccountName: 'KASIKORN BANK' },
-      { transactionId: 'TXN-A-003', bookingDateTime: '2026-06-15T00:00:00+07:00', valueDateTime: '2026-06-15T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'FEES' }, proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 500.00, amountCurrency: 'THB', transactionInformation: 'Fuel top-up', creditorAccountName: 'TRUE MONEY WALLET' },
+      { transactionId: 'TXN-A-001', bookingDateTime: '2026-06-01T00:00:00+07:00', valueDateTime: '2026-06-01T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA', proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 5000.00, amountCurrency: 'THB', transactionInformation: 'Salary payment', debtorAccountName: 'ABC COMPANY LTD' },
+      { transactionId: 'TXN-A-002', bookingDateTime: '2026-06-10T00:00:00+07:00', valueDateTime: '2026-06-10T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT', proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 1200.00, amountCurrency: 'THB', transactionInformation: 'Bill payment - utilities', creditorAccountName: 'KASIKORN BANK' },
+      { transactionId: 'TXN-A-003', bookingDateTime: '2026-06-15T00:00:00+07:00', valueDateTime: '2026-06-15T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'FEES', proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 500.00, amountCurrency: 'THB', transactionInformation: 'Fuel top-up', creditorAccountName: 'TRUE MONEY WALLET' },
     ],
   },
   'alpha-dep-e5f6a7b8': {
     transactions: [
-      { transactionId: 'TXN-B-001', bookingDateTime: '2026-06-03T00:00:00+07:00', valueDateTime: '2026-06-03T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'DMCT' }, proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 20000.00, amountCurrency: 'THB', transactionInformation: 'Transfer in', debtorAccountName: 'SOMCHAI JAIDEE' },
-      { transactionId: 'TXN-B-002', bookingDateTime: '2026-06-12T00:00:00+07:00', valueDateTime: '2026-06-12T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT' }, proprietaryBankTransactionCode: 'LN', proprietaryBankTransactionDescription: 'Loan repayment', creditDebitIndicator: 'DBIT', amount: 3500.00, amountCurrency: 'THB', transactionInformation: 'Loan repayment', creditorAccountName: 'SCB BANK' },
+      { transactionId: 'TXN-B-001', bookingDateTime: '2026-06-03T00:00:00+07:00', valueDateTime: '2026-06-03T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'DMCT', proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 20000.00, amountCurrency: 'THB', transactionInformation: 'Transfer in', debtorAccountName: 'SOMCHAI JAIDEE' },
+      { transactionId: 'TXN-B-002', bookingDateTime: '2026-06-12T00:00:00+07:00', valueDateTime: '2026-06-12T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT', proprietaryBankTransactionCode: 'LN', proprietaryBankTransactionDescription: 'Loan repayment', creditDebitIndicator: 'DBIT', amount: 3500.00, amountCurrency: 'THB', transactionInformation: 'Loan repayment', creditorAccountName: 'SCB BANK' },
     ],
   },
 };
@@ -809,13 +811,13 @@ function getServiceData(
       // TransactionResponseDetail
       return {
         accountId,
-        statementEntries: transactions,
+        transactionEntries: transactions,
       };
     }
     // TransactionResponseBasic — strip detail-only fields.
     return {
       accountId,
-      statementEntries: transactions.map(
+      transactionEntries: transactions.map(
         ({ transactionInformation, creditorAccountName, debtorAccountName, ...basic }) => basic,
       ),
     };
@@ -832,7 +834,7 @@ interface CardUsageTransaction {
   amount: number;
   amountCurrency: string;
   transactionType: 'SPENDING' | 'EPP' | 'REFUND' | 'ETL' | 'REPAYMENT' | 'RECURRING' | 'CASH' | 'VOID' | 'OTHER';
-  marchantCategoryCode: string;
+  merchantCategoryCode: string;
   // Detail-only field (UsageTransactionDetail).
   transactionDescription?: string;
 }
@@ -844,17 +846,17 @@ interface CardUsageTransaction {
 const CARD_MOCK: Record<string, { transactions: CardUsageTransaction[] }> = {
   'alpha-card-x1y2z3w4': {
     transactions: [
-      { transactionId: 'CC-VISA-001', transactionDate: '2026-05-03', postingDate: '2026-05-04', creditDebitIndicator: 'DBIT', amount: 3500, amountCurrency: 'THB', transactionType: 'SPENDING', marchantCategoryCode: '5311', transactionDescription: 'CENTRAL WORLD' },
-      { transactionId: 'CC-VISA-002', transactionDate: '2026-05-07', postingDate: '2026-05-07', creditDebitIndicator: 'DBIT', amount: 320, amountCurrency: 'THB', transactionType: 'SPENDING', marchantCategoryCode: '5812', transactionDescription: 'GRAB FOOD' },
-      { transactionId: 'CC-VISA-003', transactionDate: '2026-05-10', postingDate: '2026-05-10', creditDebitIndicator: 'CRDT', amount: 5000, amountCurrency: 'THB', transactionType: 'REPAYMENT', marchantCategoryCode: '6012', transactionDescription: 'Payment received' },
-      { transactionId: 'CC-VISA-004', transactionDate: '2026-05-14', postingDate: '2026-05-15', creditDebitIndicator: 'DBIT', amount: 1890, amountCurrency: 'THB', transactionType: 'SPENDING', marchantCategoryCode: '5961', transactionDescription: 'LAZADA' },
+      { transactionId: 'CC-VISA-001', transactionDate: '2026-05-03', postingDate: '2026-05-04', creditDebitIndicator: 'DBIT', amount: 3500, amountCurrency: 'THB', transactionType: 'SPENDING', merchantCategoryCode: '5311', transactionDescription: 'CENTRAL WORLD' },
+      { transactionId: 'CC-VISA-002', transactionDate: '2026-05-07', postingDate: '2026-05-07', creditDebitIndicator: 'DBIT', amount: 320, amountCurrency: 'THB', transactionType: 'SPENDING', merchantCategoryCode: '5812', transactionDescription: 'GRAB FOOD' },
+      { transactionId: 'CC-VISA-003', transactionDate: '2026-05-10', postingDate: '2026-05-10', creditDebitIndicator: 'CRDT', amount: 5000, amountCurrency: 'THB', transactionType: 'REPAYMENT', merchantCategoryCode: '6012', transactionDescription: 'Payment received' },
+      { transactionId: 'CC-VISA-004', transactionDate: '2026-05-14', postingDate: '2026-05-15', creditDebitIndicator: 'DBIT', amount: 1890, amountCurrency: 'THB', transactionType: 'SPENDING', merchantCategoryCode: '5961', transactionDescription: 'LAZADA' },
     ],
   },
   'alpha-card-m5n6p7q8': {
     transactions: [
-      { transactionId: 'CC-MC-001', transactionDate: '2026-05-05', postingDate: '2026-05-06', creditDebitIndicator: 'DBIT', amount: 800, amountCurrency: 'THB', transactionType: 'SPENDING', marchantCategoryCode: '5812', transactionDescription: 'MK RESTAURANT' },
-      { transactionId: 'CC-MC-002', transactionDate: '2026-05-18', postingDate: '2026-05-18', creditDebitIndicator: 'CRDT', amount: 2000, amountCurrency: 'THB', transactionType: 'REPAYMENT', marchantCategoryCode: '6012', transactionDescription: 'Payment received' },
-      { transactionId: 'CC-MC-003', transactionDate: '2026-05-22', postingDate: '2026-05-23', creditDebitIndicator: 'DBIT', amount: 4200, amountCurrency: 'THB', transactionType: 'SPENDING', marchantCategoryCode: '5411', transactionDescription: 'TOPS SUPERMARKET' },
+      { transactionId: 'CC-MC-001', transactionDate: '2026-05-05', postingDate: '2026-05-06', creditDebitIndicator: 'DBIT', amount: 800, amountCurrency: 'THB', transactionType: 'SPENDING', merchantCategoryCode: '5812', transactionDescription: 'MK RESTAURANT' },
+      { transactionId: 'CC-MC-002', transactionDate: '2026-05-18', postingDate: '2026-05-18', creditDebitIndicator: 'CRDT', amount: 2000, amountCurrency: 'THB', transactionType: 'REPAYMENT', merchantCategoryCode: '6012', transactionDescription: 'Payment received' },
+      { transactionId: 'CC-MC-003', transactionDate: '2026-05-22', postingDate: '2026-05-23', creditDebitIndicator: 'DBIT', amount: 4200, amountCurrency: 'THB', transactionType: 'SPENDING', merchantCategoryCode: '5411', transactionDescription: 'TOPS SUPERMARKET' },
     ],
   },
 };
@@ -870,12 +872,12 @@ function getCreditCardTransactions(
 
   if (extension === 'transactions_detail') {
     // TransactionResponseDetail
-    return { cardNumber, usageTransactions: transactions };
+    return { cardNumber, transactionEntries: transactions };
   }
   // TransactionResponseBasic — strip detail-only field.
   return {
     cardNumber,
-    usageTransactions: transactions.map(({ transactionDescription, ...basic }) => basic),
+    transactionEntries: transactions.map(({ transactionDescription, ...basic }) => basic),
   };
 }
 

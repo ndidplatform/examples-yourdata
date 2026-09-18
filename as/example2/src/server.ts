@@ -702,13 +702,15 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 // Response shape follows the published dataset schema exactly:
-//   https://app.swaggerhub.com/apis/NDID/YourData_Schema_Deposit/1.0.0#/default/getDepositTransactions
+//   https://app.swaggerhub.com/apis/NDID/YourData_Schema_Deposit/1.0.1
 
 interface DepositTransactionEntry {
   transactionId: string;
   bookingDateTime: string;
   valueDateTime?: string;
-  commonTransactionCode: { domainCode: string; familyCode: string; subFamilyCode: string };
+  domainCode: string;
+  familyCode: string;
+  subFamilyCode: string;
   proprietaryBankTransactionCode: string;
   proprietaryBankTransactionDescription: string;
   creditDebitIndicator: 'CRDT' | 'DBIT';
@@ -727,15 +729,15 @@ interface DepositTransactionEntry {
 const DEPOSIT_MOCK: Record<string, { transactions: DepositTransactionEntry[] }> = {
   'beta-dep-c1d2e3f4': {
     transactions: [
-      { transactionId: 'BETA-A-001', bookingDateTime: '2026-06-02T00:00:00+07:00', valueDateTime: '2026-06-02T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA' }, proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 8000.00, amountCurrency: 'THB', transactionInformation: 'Monthly salary', debtorAccountName: 'XYZ CORPORATION' },
-      { transactionId: 'BETA-A-002', bookingDateTime: '2026-06-12T00:00:00+07:00', valueDateTime: '2026-06-12T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT' }, proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 2500.00, amountCurrency: 'THB', transactionInformation: 'Rent payment', creditorAccountName: 'CENTRAL PATTANA' },
-      { transactionId: 'BETA-A-003', bookingDateTime: '2026-06-18T00:00:00+07:00', valueDateTime: '2026-06-18T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'FEES' }, proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 750.00, amountCurrency: 'THB', transactionInformation: 'Mobile top-up', creditorAccountName: 'AIS MOBILE' },
+      { transactionId: 'BETA-A-001', bookingDateTime: '2026-06-02T00:00:00+07:00', valueDateTime: '2026-06-02T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA', proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 8000.00, amountCurrency: 'THB', transactionInformation: 'Monthly salary', debtorAccountName: 'XYZ CORPORATION' },
+      { transactionId: 'BETA-A-002', bookingDateTime: '2026-06-12T00:00:00+07:00', valueDateTime: '2026-06-12T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT', proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 2500.00, amountCurrency: 'THB', transactionInformation: 'Rent payment', creditorAccountName: 'CENTRAL PATTANA' },
+      { transactionId: 'BETA-A-003', bookingDateTime: '2026-06-18T00:00:00+07:00', valueDateTime: '2026-06-18T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'FEES', proprietaryBankTransactionCode: 'BP', proprietaryBankTransactionDescription: 'Bill payment', creditDebitIndicator: 'DBIT', amount: 750.00, amountCurrency: 'THB', transactionInformation: 'Mobile top-up', creditorAccountName: 'AIS MOBILE' },
     ],
   },
   'beta-dep-g5h6i7j8': {
     transactions: [
-      { transactionId: 'BETA-B-001', bookingDateTime: '2026-06-05T00:00:00+07:00', valueDateTime: '2026-06-05T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA' }, proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 15000.00, amountCurrency: 'THB', transactionInformation: 'Salary deposit', debtorAccountName: 'BETA PAYROLL CO' },
-      { transactionId: 'BETA-B-002', bookingDateTime: '2026-06-20T00:00:00+07:00', valueDateTime: '2026-06-20T00:00:00+07:00', commonTransactionCode: { domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT' }, proprietaryBankTransactionCode: 'LN', proprietaryBankTransactionDescription: 'Loan repayment', creditDebitIndicator: 'DBIT', amount: 5000.00, amountCurrency: 'THB', transactionInformation: 'Loan repayment', creditorAccountName: 'BANGKOK BANK' },
+      { transactionId: 'BETA-B-001', bookingDateTime: '2026-06-05T00:00:00+07:00', valueDateTime: '2026-06-05T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA', proprietaryBankTransactionCode: 'TW', proprietaryBankTransactionDescription: 'Transfer in', creditDebitIndicator: 'CRDT', amount: 15000.00, amountCurrency: 'THB', transactionInformation: 'Salary deposit', debtorAccountName: 'BETA PAYROLL CO' },
+      { transactionId: 'BETA-B-002', bookingDateTime: '2026-06-20T00:00:00+07:00', valueDateTime: '2026-06-20T00:00:00+07:00', domainCode: 'PMNT', familyCode: 'MDOP', subFamilyCode: 'RPMT', proprietaryBankTransactionCode: 'LN', proprietaryBankTransactionDescription: 'Loan repayment', creditDebitIndicator: 'DBIT', amount: 5000.00, amountCurrency: 'THB', transactionInformation: 'Loan repayment', creditorAccountName: 'BANGKOK BANK' },
     ],
   },
 };
@@ -759,13 +761,13 @@ function getDepositTransactions(
 
   if (extension === 'transactions_detail') {
     // TransactionResponseDetail
-    return { accountId, statementEntries: transactions };
+    return { accountId, transactionEntries: transactions };
   }
 
   // TransactionResponseBasic — strip detail-only fields.
   return {
     accountId,
-    statementEntries: transactions.map(
+    transactionEntries: transactions.map(
       ({ transactionInformation, creditorAccountName, debtorAccountName, ...basic }) => basic,
     ),
   };

@@ -200,7 +200,7 @@ DR_DATA=$(curl -sf "http://localhost:9000/data-request/data/$DR_ID")
 TXN_COUNT=$(echo "$DR_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  process.stdout.write(String((d.statementEntries||[]).length));
+  process.stdout.write(String((d.transactionEntries||[]).length));
 ")
 [ "$TXN_COUNT" -gt 0 ] 2>/dev/null && ok "Deposit transactions_basic received  ($TXN_COUNT transactions)" || fail "No transactions in deposit basic data"
 
@@ -208,7 +208,7 @@ BASIC_HAS_PAYER=$(echo "$DR_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
   // BOT standard: transactions_basic has no debtorAccountName/creditorAccountName
-  const hasPayer = (d.statementEntries||[]).some(t => t.debtorAccountName || t.creditorAccountName);
+  const hasPayer = (d.transactionEntries||[]).some(t => t.debtorAccountName || t.creditorAccountName);
   process.stdout.write(hasPayer ? 'yes' : 'no');
 ")
 [ "$BASIC_HAS_PAYER" = "no" ] && ok "transactions_basic: debtorAccountName/creditorAccountName absent (correct)" || fail "transactions_basic should not contain payer/payee names"
@@ -231,7 +231,7 @@ DETAIL_HAS_PAYER=$(echo "$DR2_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
   // BOT standard: transactions_detail has debtorAccountName or creditorAccountName
-  const hasPayer = (d.statementEntries||[]).some(t => t.debtorAccountName !== undefined || t.creditorAccountName !== undefined);
+  const hasPayer = (d.transactionEntries||[]).some(t => t.debtorAccountName !== undefined || t.creditorAccountName !== undefined);
   process.stdout.write(hasPayer ? 'yes' : 'no');
 ")
 [ "$DETAIL_HAS_PAYER" = "yes" ] && ok "transactions_detail: debtorAccountName/creditorAccountName present (correct)" || fail "transactions_detail should contain payer/payee names (BOT standard)"
@@ -241,7 +241,7 @@ echo "  Transactions (detail):"
 echo "$DR2_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  (d.statementEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
+  (d.transactionEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
 "
 
 # ── Step 4c: Data request — 12-month lookback (basic_002, no explicit date range) ──
@@ -261,7 +261,7 @@ DR3_DATA=$(curl -sf "http://localhost:9000/data-request/data/$DR3_ID")
 LOOKBACK_TXN_COUNT=$(echo "$DR3_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  process.stdout.write(String((d.statementEntries||[]).length));
+  process.stdout.write(String((d.transactionEntries||[]).length));
 ")
 [ "$LOOKBACK_TXN_COUNT" = "$TXN_COUNT" ] && ok "lookback_12_months returned all $TXN_COUNT transactions (no false cap rejection)" || fail "Expected $TXN_COUNT transactions with lookback_12_months, got: $LOOKBACK_TXN_COUNT"
 
@@ -338,14 +338,14 @@ DR_CC_DATA=$(curl -sf "http://localhost:9000/data-request/data/$DR_CC_ID")
 CC_TXN_COUNT=$(echo "$DR_CC_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  process.stdout.write(String((d.usageTransactions||[]).length));
+  process.stdout.write(String((d.transactionEntries||[]).length));
 ")
 [ "$CC_TXN_COUNT" -gt 0 ] 2>/dev/null && ok "Credit card transactions_detail received  ($CC_TXN_COUNT transactions)" || fail "No transactions in credit card data"
 
 CC_HAS_DESCRIPTION=$(echo "$DR_CC_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  const has = (d.usageTransactions||[]).some(t => t.transactionDescription !== undefined);
+  const has = (d.transactionEntries||[]).some(t => t.transactionDescription !== undefined);
   process.stdout.write(has ? 'yes' : 'no');
 ")
 [ "$CC_HAS_DESCRIPTION" = "yes" ] && ok "transactions_detail: transactionDescription present (correct)" || fail "transactions_detail should contain transactionDescription"
@@ -355,7 +355,7 @@ echo "  Transactions (detail):"
 echo "$DR_CC_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  (d.usageTransactions||[]).forEach(t => console.log('  ', JSON.stringify(t)));
+  (d.transactionEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
 "
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -447,7 +447,7 @@ DR_AS2_DATA=$(curl -sf "http://localhost:9000/data-request/data/$DR_AS2_ID")
 AS2_TXN_COUNT=$(echo "$DR_AS2_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  process.stdout.write(String((d.statementEntries||[]).length));
+  process.stdout.write(String((d.transactionEntries||[]).length));
 ")
 [ "$AS2_TXN_COUNT" -gt 0 ] 2>/dev/null \
   && ok "Beta Bank deposit transactions received  ($AS2_TXN_COUNT transactions)" \
@@ -458,7 +458,7 @@ echo "  Beta Bank transactions (detail):"
 echo "$DR_AS2_DATA" | node -e "
   const arr=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   const d=JSON.parse(arr[0].data||'{}');
-  (d.statementEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
+  (d.transactionEntries||[]).forEach(t => console.log('  ', JSON.stringify(t)));
 "
 
 # ─────────────────────────────────────────────────────────────────────────────

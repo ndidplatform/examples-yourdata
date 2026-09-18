@@ -17,9 +17,8 @@ interface BackendDataItem {
   [key: string]: unknown
 }
 
-// The AS already responds with the real dataset schema (accountId +
-// statementEntries for deposit, cardNumber + usageTransactions for card
-// payment) — no client-side mapping needed.
+// The AS already responds with the real dataset schema (accountId or
+// cardNumber + transactionEntries) — no client-side mapping needed.
 function toServiceData(raw: unknown): ServiceData | null {
   if (!raw) return null
   return raw as ServiceData

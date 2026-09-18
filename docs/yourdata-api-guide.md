@@ -1,6 +1,6 @@
 # YourData API — Developer Guide
 
-NDID Platform · Centralized Data Exchange Mechanism · v1.4  
+NDID Platform · Centralized Data Exchange Mechanism · v1.4.1  
 Audience: **DC / RP (Data Consumer)** developers
 
 ---
@@ -933,7 +933,7 @@ Example response body for `900.deposit_transactions_basic_001`:
 ```json
 {
   "request_id": "req-data-xxxx",
-  "data": "{\"accountId\":\"1234561234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
+  "data": "{\"accountId\":\"1234561234\",\"transactionEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\",\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
 }
 ```
 
@@ -1019,7 +1019,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "signature_signing_algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
   "signature_signing_key_version": 1,
   "data_salt": "<salt>",
-  "data": "{\"accountId\":\"1234561234\",\"statementEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"commonTransactionCode\":{\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\"},\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
+  "data": "{\"accountId\":\"1234561234\",\"transactionEntries\":[{\"transactionId\":\"TXN-A-001\",\"bookingDateTime\":\"2026-06-01T00:00:00+07:00\",\"domainCode\":\"PMNT\",\"familyCode\":\"RCDT\",\"subFamilyCode\":\"SALA\",\"proprietaryBankTransactionCode\":\"TW\",\"proprietaryBankTransactionDescription\":\"Transfer in\",\"creditDebitIndicator\":\"CRDT\",\"amount\":5000,\"amountCurrency\":\"THB\"}]}"
 }
 ```
 > See §9.5 for what `source_signature`/`signature_signing_algorithm`/`signature_signing_key_version`/`data_salt` are for — they're present on every `request_data` response.
@@ -1063,16 +1063,14 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
 ```json
 {
   "accountId": "1234561234",
-  "statementEntries": [
+  "transactionEntries": [
     {
       "transactionId": "TXN-A-001",
       "bookingDateTime": "2026-06-01T00:00:00+07:00",
       "valueDateTime": "2026-06-01T00:00:00+07:00",
-      "commonTransactionCode": {
-        "domainCode": "PMNT",
-        "familyCode": "RCDT",
-        "subFamilyCode": "SALA"
-      },
+      "domainCode": "PMNT",
+      "familyCode": "RCDT",
+      "subFamilyCode": "SALA",
       "proprietaryBankTransactionCode": "TW",
       "proprietaryBankTransactionDescription": "Transfer in",
       "creditDebitIndicator": "CRDT",
@@ -1133,11 +1131,9 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
     {
       "transactionId": "TXN-A-001",
       "bookingDateTime": "2026-06-01T00:00:00+07:00",
-      "commonTransactionCode": {
-        "domainCode": "PMNT",
-        "familyCode": "RCDT",
-        "subFamilyCode": "SALA"
-      },
+      "domainCode": "PMNT",
+      "familyCode": "RCDT",
+      "subFamilyCode": "SALA",
       "proprietaryBankTransactionCode": "TW",
       "proprietaryBankTransactionDescription": "Transfer in",
       "creditDebitIndicator": "CRDT",
@@ -1326,7 +1322,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "installmentAmount": 3200,
   "lastPaymentDate": "2026-06-01",
   "userDeclaredIncome": 50000,
-  "accountStatementTransactions": [
+  "statementEntries": [
     {
       "billDate": "2026-06",
       "duePayemntDate": "2026-06-05",
@@ -1384,11 +1380,9 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
     {
       "transactionId": "EM-001",
       "bookingDateTime": "2026-06-01T00:00:00+07:00",
-      "commonTransactionCode": {
-        "domainCode": "PMNT",
-        "familyCode": "MDOP",
-        "subFamilyCode": "RPMT"
-      },
+      "domainCode": "PMNT",
+      "familyCode": "MDOP",
+      "subFamilyCode": "RPMT",
       "proprietaryeWalletTransactionCode": "PAY",
       "proprietaryeWalletTransactionDescription": "Bill payment",
       "creditDebitIndicator": "DBIT",
@@ -1430,11 +1424,9 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
     {
       "transactionId": "EM-001",
       "bookingDateTime": "2026-06-01T00:00:00+07:00",
-      "commonTransactionCode": {
-        "domainCode": "PMNT",
-        "familyCode": "MDOP",
-        "subFamilyCode": "RPMT"
-      },
+      "domainCode": "PMNT",
+      "familyCode": "MDOP",
+      "subFamilyCode": "RPMT",
       "proprietaryeWalletTransactionCode": "PAY",
       "proprietaryeWalletTransactionDescription": "Bill payment",
       "creditDebitIndicator": "DBIT",
