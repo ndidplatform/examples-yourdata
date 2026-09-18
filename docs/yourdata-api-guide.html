@@ -1168,7 +1168,7 @@
       <div>
         <h1>YourData API — Interactive Flow Guide</h1>
         <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 2px">
-          NDID Platform · Centralized Data Exchange Mechanism · v1.4
+          NDID Platform · Centralized Data Exchange Mechanism · v1.4.1
         </div>
       </div>
       <div class="badge">DC / RP Developer Guide</div>
@@ -4418,13 +4418,18 @@
 
       // Mock response bodies keyed by service_id -- field names verified against the
       // real YourData_Schema_* OpenAPI specs (SwaggerHub NDID/YourData_Schema_
-      // {Deposit,EMoney,CardPayment,Loan} -- all four re-verified against v1.0.1,
-      // 27 Aug 2026), not invented. Deposit's and
-      // e-Money's transaction/statement entries nest domainCode/familyCode/
-      // subFamilyCode under a required commonTransactionCode object per v1.0.1
-      // (previously flat). e-Money's Balance response (and Statement header) wrap
-      // lastLedgerBalanceAmount/lastLedgerBalanceCurrency in a required
-      // balanceInfo array per v1.0.1 (previously flat top-level fields).
+      // {Deposit,EMoney,CardPayment,Loan}, all re-verified against v1.0.1,
+      // 17 Sep 2026), not invented. Deposit's and e-Money's transaction/statement
+      // entries keep domainCode/familyCode/subFamilyCode as flat top-level
+      // fields alongside proprietaryBankTransactionCode/
+      // proprietaryeWalletTransactionCode -- there is no commonTransactionCode
+      // wrapper in either published spec. e-Money's Balance response (and
+      // Statement header) do wrap lastLedgerBalanceAmount/
+      // lastLedgerBalanceCurrency in a required balanceInfo array. Loan's
+      // statement response nests its billing-cycle entries under
+      // statementEntries (not accountStatementTransactions), matching Deposit/
+      // e-Money's naming; duePayemntDate is a genuine typo in the published
+      // Loan spec, kept as-is intentionally.
       //
       // Basic vs Detail is now a hasDetail param baked in by which service_id's
       // wrapper called it below (Basic/Detail is a service_id choice, not a
@@ -4438,11 +4443,9 @@
             transactionId: "TXN-A-001",
             bookingDateTime: "2026-06-01T00:00:00+07:00",
             valueDateTime: "2026-06-01T00:00:00+07:00",
-            commonTransactionCode: {
-              domainCode: "PMNT",
-              familyCode: "RCDT",
-              subFamilyCode: "SALA",
-            },
+            domainCode: "PMNT",
+            familyCode: "RCDT",
+            subFamilyCode: "SALA",
             proprietaryBankTransactionCode: "TW",
             proprietaryBankTransactionDescription: "Transfer in",
             creditDebitIndicator: "CRDT",
@@ -4455,11 +4458,9 @@
             transactionId: "TXN-A-002",
             bookingDateTime: "2026-06-10T00:00:00+07:00",
             valueDateTime: "2026-06-10T00:00:00+07:00",
-            commonTransactionCode: {
-              domainCode: "PMNT",
-              familyCode: "MDOP",
-              subFamilyCode: "RPMT",
-            },
+            domainCode: "PMNT",
+            familyCode: "MDOP",
+            subFamilyCode: "RPMT",
             proprietaryBankTransactionCode: "BP",
             proprietaryBankTransactionDescription: "Bill payment",
             creditDebitIndicator: "DBIT",
@@ -4495,17 +4496,15 @@
           entries[1].receivingInstitutionName = "Kasikorn Bank";
           entries[1].merchantName = "MEA - Electricity Bill";
         }
-        return { accountId: "1234561234", statementEntries: entries };
+        return { accountId: "1234561234", transactionEntries: entries };
       }
       function depositStatementMock(hasDetail) {
         var entry = {
           transactionId: "TXN-A-001",
           bookingDateTime: "2026-06-01T00:00:00+07:00",
-          commonTransactionCode: {
-            domainCode: "PMNT",
-            familyCode: "RCDT",
-            subFamilyCode: "SALA",
-          },
+          domainCode: "PMNT",
+          familyCode: "RCDT",
+          subFamilyCode: "SALA",
           proprietaryBankTransactionCode: "TW",
           proprietaryBankTransactionDescription: "Transfer in",
           creditDebitIndicator: "CRDT",
@@ -4596,11 +4595,9 @@
         var entry = {
           transactionId: "EM-001",
           bookingDateTime: "2026-06-01T00:00:00+07:00",
-          commonTransactionCode: {
-            domainCode: "PMNT",
-            familyCode: "MDOP",
-            subFamilyCode: "RPMT",
-          },
+          domainCode: "PMNT",
+          familyCode: "MDOP",
+          subFamilyCode: "RPMT",
           proprietaryeWalletTransactionCode: "PAY",
           proprietaryeWalletTransactionDescription: "Bill payment",
           creditDebitIndicator: "DBIT",
@@ -4614,11 +4611,9 @@
         var entry = {
           transactionId: "EM-001",
           bookingDateTime: "2026-06-01T00:00:00+07:00",
-          commonTransactionCode: {
-            domainCode: "PMNT",
-            familyCode: "MDOP",
-            subFamilyCode: "RPMT",
-          },
+          domainCode: "PMNT",
+          familyCode: "MDOP",
+          subFamilyCode: "RPMT",
           proprietaryeWalletTransactionCode: "PAY",
           proprietaryeWalletTransactionDescription: "Bill payment",
           creditDebitIndicator: "DBIT",
@@ -4857,7 +4852,7 @@
             installmentAmount: 3200,
             lastPaymentDate: "2026-06-01",
             userDeclaredIncome: 50000,
-            accountStatementTransactions: [
+            statementEntries: [
               {
                 billDate: "2026-06",
                 duePayemntDate: "2026-06-05",

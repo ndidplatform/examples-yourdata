@@ -5,19 +5,19 @@ import { StepDataResult } from './StepDataResult'
 import type { DepositData, CreditData } from '@/domain/types'
 
 // Regression coverage for the real dataset schemas returned by the AS
-// (YourData_Schema_Deposit / YourData_Schema_CardPayment) — accountId +
-// statementEntries for deposit, cardNumber + usageTransactions for card
-// payment. A prior refactor renamed these fields on the backend without
-// updating the render-side type guards, so every result silently rendered
-// as nothing with no error shown.
+// (YourData_Schema_Deposit / YourData_Schema_CardPayment) — both datasets
+// share the transactionEntries key, distinguished by accountId (deposit)
+// vs. cardNumber (card payment). A prior refactor renamed these fields on
+// the backend without updating the render-side type guards, so every
+// result silently rendered as nothing with no error shown.
 
 const depositResult: DepositData = {
   accountId: '***-***-1234',
-  statementEntries: [
+  transactionEntries: [
     {
       transactionId: 'TXN-001',
       bookingDateTime: '2026-06-01T00:00:00+07:00',
-      commonTransactionCode: { domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA' },
+      domainCode: 'PMNT', familyCode: 'RCDT', subFamilyCode: 'SALA',
       proprietaryBankTransactionCode: 'TW',
       proprietaryBankTransactionDescription: 'Transfer in',
       creditDebitIndicator: 'CRDT',
@@ -29,7 +29,7 @@ const depositResult: DepositData = {
 
 const creditResult: CreditData = {
   cardNumber: '123456XXXXXX1111',
-  usageTransactions: [
+  transactionEntries: [
     {
       transactionId: 'CC-001',
       transactionDate: '2026-05-03',
@@ -37,7 +37,7 @@ const creditResult: CreditData = {
       amount: 3500,
       amountCurrency: 'THB',
       transactionType: 'SPENDING',
-      marchantCategoryCode: '5311',
+      merchantCategoryCode: '5311',
     },
   ],
 }
@@ -47,7 +47,7 @@ beforeEach(() => {
 })
 
 describe('StepDataResult', () => {
-  it('renders a deposit result (accountId + statementEntries)', () => {
+  it('renders a deposit result (accountId + transactionEntries)', () => {
     useConsentRequestStore.setState({
       dataResults: [
         { dpId: 'as1', dpNameTh: 'ธนาคาร A', datasetId: '900.deposit_transactions_001', datasetName: 'เงินฝาก', data: [depositResult] },
@@ -63,7 +63,7 @@ describe('StepDataResult', () => {
     expect(screen.getByText('Transfer in')).toBeInTheDocument()
   })
 
-  it('renders a credit card result (cardNumber + usageTransactions)', () => {
+  it('renders a credit card result (cardNumber + transactionEntries)', () => {
     useConsentRequestStore.setState({
       dataResults: [
         { dpId: 'as1', dpNameTh: 'ธนาคาร A', datasetId: '900.cardpayment_transactions_001', datasetName: 'บัตรเครดิต', data: [creditResult] },

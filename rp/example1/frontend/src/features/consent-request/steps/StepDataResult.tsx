@@ -3,12 +3,16 @@ import { Loader2 } from 'lucide-react'
 import { useConsentRequestStore } from '@/stores/consentRequestStore'
 import type { DataResultEntry, DepositData, CreditData, ServiceData } from '@/domain/types'
 
+// Both DepositData and CreditData carry transactionEntries (per the real
+// TransactionResponseBasic/Detail schema, which uses that key for both
+// datasets) — so accountId vs. cardNumber is the discriminator, not the
+// entries field.
 function isDepositData(data: ServiceData): data is DepositData {
-  return 'statementEntries' in data
+  return 'accountId' in data
 }
 
 function isCreditData(data: ServiceData): data is CreditData {
-  return 'usageTransactions' in data
+  return 'cardNumber' in data
 }
 
 function formatDate(isoDate: string): string {
@@ -26,7 +30,7 @@ function DepositAccountCard({ data }: { data: DepositData }) {
         เลขที่บัญชี: <span style={{ fontWeight: 600, color: '#0F172A' }}>{data.accountId}{data.accountTypeName ? ` | ประเภทบัญชี: ${data.accountTypeName}` : ''}</span>
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {data.statementEntries.map((tx, i) => (
+        {data.transactionEntries.map((tx, i) => (
           <div
             key={tx.transactionId ?? `${data.accountId}-${i}`}
             style={{
@@ -67,7 +71,7 @@ function CreditAccountCard({ data }: { data: CreditData }) {
         เลขที่บัตร: <span style={{ fontWeight: 600, color: '#0F172A' }}>{data.cardNumber}{data.accountTypeName ? ` | ${data.accountTypeName}` : ''}</span>
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {data.usageTransactions.map((tx, i) => (
+        {data.transactionEntries.map((tx, i) => (
           <div
             key={tx.transactionId ?? `${data.cardNumber}-${i}`}
             style={{

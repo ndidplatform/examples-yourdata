@@ -1,15 +1,13 @@
-export interface CommonTransactionCode {
-  domainCode: string
-  familyCode: string
-  subFamilyCode: string
-}
-
 // Mirrors YourData_Schema_Deposit's TransactionEntryBasic / TransactionEntryDetail.
+// domainCode/familyCode/subFamilyCode are flat top-level fields on TransactionBase
+// in the real schema — not nested under a commonTransactionCode wrapper.
 export interface DepositTransaction {
   transactionId: string
   bookingDateTime: string
   valueDateTime?: string
-  commonTransactionCode: CommonTransactionCode
+  domainCode: string
+  familyCode: string
+  subFamilyCode: string
   proprietaryBankTransactionCode: string
   proprietaryBankTransactionDescription: string
   creditDebitIndicator: 'CRDT' | 'DBIT'
@@ -24,7 +22,7 @@ export interface DepositTransaction {
 // Mirrors YourData_Schema_Deposit's TransactionResponseBasic / TransactionResponseDetail.
 export interface DepositData {
   accountId: string
-  statementEntries: DepositTransaction[]
+  transactionEntries: DepositTransaction[]
   accountTypeName?: string // attached client-side from the selected Account; not sent by the AS
 }
 
@@ -37,7 +35,7 @@ export interface CreditTransaction {
   amount: number
   amountCurrency: string
   transactionType: 'SPENDING' | 'EPP' | 'REFUND' | 'ETL' | 'REPAYMENT' | 'RECURRING' | 'CASH' | 'VOID' | 'OTHER'
-  marchantCategoryCode: string
+  merchantCategoryCode: string
   // Detail-only field — absent when service_extension is transactions_basic.
   transactionDescription?: string
 }
@@ -45,7 +43,7 @@ export interface CreditTransaction {
 // Mirrors YourData_Schema_CardPayment's TransactionResponseBasic / TransactionResponseDetail.
 export interface CreditData {
   cardNumber: string
-  usageTransactions: CreditTransaction[]
+  transactionEntries: CreditTransaction[]
   accountTypeName?: string // attached client-side from the selected Account; not sent by the AS
 }
 
