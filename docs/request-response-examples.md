@@ -74,13 +74,12 @@ Decoded `authorization` payload (JWT middle segment, mock/unsigned):
   "validate_identifier": true,
   "validate_service_id": true,
   "validate_service_extension": false,
-  "token_objective": "เพื่อการพิจารณาให้สินเชื่อ",
   "service_id_list": [
     {
       "service_id": "900.complete_consent_001",
       "service_version": "v1",
       "service_extension": [
-        "{\"usage_type\":\"continuous_with_expire\",\"expiration_datetime\":1791954000,\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"
+        "{\"token_objective\":\"เพื่อการพิจารณาให้สินเชื่อ\",\"usage_type\":\"continuous_with_expire\",\"expiration_datetime\":1791954000,\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_002\"}]}"
       ]
     }
   ]
@@ -150,6 +149,7 @@ Decoded consent token for `alpha-dep-a1b2c3d4`:
   "as_node_id": "as1",
   "namespace": "citizen_id",
   "identifier": "1234567890123",
+  "token_objective": "เพื่อการพิจารณาให้สินเชื่อ",
   "source_request_id_list": [
     "<pre-consent request_id>",
     "<complete-consent request_id>"
@@ -218,16 +218,14 @@ complete-consent:
     "service_id": "900.deposit_transactions_basic_002",
     "data": {
       "accountId": "123-456-1234",
-      "statementEntries": [
+      "transactionEntries": [
         {
           "transactionId": "TXN-A-001",
           "bookingDateTime": "2026-06-01T00:00:00+07:00",
           "valueDateTime": "2026-06-01T00:00:00+07:00",
-          "commonTransactionCode": {
-            "domainCode": "PMNT",
-            "familyCode": "RCDT",
-            "subFamilyCode": "SALA"
-          },
+          "domainCode": "PMNT",
+          "familyCode": "RCDT",
+          "subFamilyCode": "SALA",
           "proprietaryBankTransactionCode": "TW",
           "proprietaryBankTransactionDescription": "Transfer in",
           "creditDebitIndicator": "CRDT",
@@ -238,11 +236,9 @@ complete-consent:
           "transactionId": "TXN-A-002",
           "bookingDateTime": "2026-06-10T00:00:00+07:00",
           "valueDateTime": "2026-06-10T00:00:00+07:00",
-          "commonTransactionCode": {
-            "domainCode": "PMNT",
-            "familyCode": "MDOP",
-            "subFamilyCode": "RPMT"
-          },
+          "domainCode": "PMNT",
+          "familyCode": "MDOP",
+          "subFamilyCode": "RPMT",
           "proprietaryBankTransactionCode": "BP",
           "proprietaryBankTransactionDescription": "Bill payment",
           "creditDebitIndicator": "DBIT",
@@ -253,11 +249,9 @@ complete-consent:
           "transactionId": "TXN-A-003",
           "bookingDateTime": "2026-06-15T00:00:00+07:00",
           "valueDateTime": "2026-06-15T00:00:00+07:00",
-          "commonTransactionCode": {
-            "domainCode": "PMNT",
-            "familyCode": "MDOP",
-            "subFamilyCode": "FEES"
-          },
+          "domainCode": "PMNT",
+          "familyCode": "MDOP",
+          "subFamilyCode": "FEES",
           "proprietaryBankTransactionCode": "BP",
           "proprietaryBankTransactionDescription": "Bill payment",
           "creditDebitIndicator": "DBIT",
@@ -295,16 +289,14 @@ complete-consent:
     "service_id": "900.deposit_transactions_basic_002",
     "data": {
       "accountId": "234-567-5678",
-      "statementEntries": [
+      "transactionEntries": [
         {
           "transactionId": "TXN-B-001",
           "bookingDateTime": "2026-06-03T00:00:00+07:00",
           "valueDateTime": "2026-06-03T00:00:00+07:00",
-          "commonTransactionCode": {
-            "domainCode": "PMNT",
-            "familyCode": "RCDT",
-            "subFamilyCode": "DMCT"
-          },
+          "domainCode": "PMNT",
+          "familyCode": "RCDT",
+          "subFamilyCode": "DMCT",
           "proprietaryBankTransactionCode": "TW",
           "proprietaryBankTransactionDescription": "Transfer in",
           "creditDebitIndicator": "CRDT",
@@ -315,11 +307,9 @@ complete-consent:
           "transactionId": "TXN-B-002",
           "bookingDateTime": "2026-06-12T00:00:00+07:00",
           "valueDateTime": "2026-06-12T00:00:00+07:00",
-          "commonTransactionCode": {
-            "domainCode": "PMNT",
-            "familyCode": "MDOP",
-            "subFamilyCode": "RPMT"
-          },
+          "domainCode": "PMNT",
+          "familyCode": "MDOP",
+          "subFamilyCode": "RPMT",
           "proprietaryBankTransactionCode": "LN",
           "proprietaryBankTransactionDescription": "Loan repayment",
           "creditDebitIndicator": "DBIT",

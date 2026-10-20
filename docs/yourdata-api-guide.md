@@ -1,6 +1,6 @@
 # YourData API — Developer Guide
 
-NDID Platform · Centralized Data Exchange Mechanism · v1.4.1  
+NDID Platform · Centralized Data Exchange Mechanism · v1.4.2  
 Audience: **DC / RP (Data Consumer)** developers
 
 ---
@@ -1325,7 +1325,7 @@ GET /v7/yourdata/rp/request_data/req-data-xxxx
   "statementEntries": [
     {
       "billDate": "2026-06",
-      "duePayemntDate": "2026-06-05",
+      "duePaymentDate": "2026-06-05",
       "billAmount": 3200,
       "contractRemainingAmount": 72000,
       "contractRemainingCurrency": "THB",
