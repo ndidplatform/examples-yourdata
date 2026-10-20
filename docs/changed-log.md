@@ -4,6 +4,10 @@ Covers `yourdata-api-guide.html` and `yourdata-api-guide.md`, which are kept in 
 
 Compiled by diffing the four version snapshots in `~/Downloads` (`yourdata-api-guide-v1.1.html` through `-v1.4.html`) plus this session's own edits. No copy of v1.0 or earlier was available locally, so nothing before v1.1 is documented here. Release dates aren't included — the only date signal available (file mtimes) reflects when each copy was last saved/downloaded, not necessarily when the version was authored, so it isn't reliable enough to state as fact.
 
+## v1.4.2
+
+- **Loan — Statement entries**: renamed `duePayemntDate` → `duePaymentDate`. The typo has been fixed in the published SwaggerHub Loan spec, so the guide no longer carries it over (supersedes the v1.4.1 note below about leaving it as-is).
+
 ## v1.4.1
 
 Fixes field-name regressions introduced in v1.4 that didn't actually match the real SwaggerHub `NDID/YourData_Schema_{Deposit,EMoney,CardPayment,Loan}` v1.0.1 specs — caught by re-verifying directly against the live schemas:
@@ -28,7 +32,7 @@ Fixes field-name regressions introduced in v1.4 that didn't actually match the r
 - Loan: corrected `institutionCode` to the full 13-character code; simplified date fields (`openingDate`, `maturityDate`, `billDate`, `lastPaymentDate`) from datetime to date/month-only; added `duePayemntDate` (carried over from a genuine typo in the published spec) and `dueInstallment` to statement entries.
 - e-Money: wrapped `lastLedgerBalanceAmount`/`lastLedgerBalanceCurrency` in a `balanceInfo` array on Balance/Statement responses (previously flat top-level fields) — this part was correct per the real spec.
 - **Regression introduced here, fixed in v1.4.1 above**: Deposit's and e-Money's Transactions/Statement entries incorrectly nested `domainCode`/`familyCode`/`subFamilyCode` under a new `commonTransactionCode` object, and Deposit's Transactions response array key was changed to `statementEntries` — neither matches the real v1.0.1 schema.
-- Added SLA/behavior notes: max 5 accounts per dataset per complete-consent call (else error 40400); `source_signature`/`signature_signing_algorithm`/`signature_signing_key_version`/`data_salt` added to more example responses; clarified `validate_service_extension` semantics (subset match, paired with an explicit `service_extension: []` on every `consent_token` service_id_list entry) and that all four registration fields are required on a service_id's _first_ registration (only optional on updates).
+- Added SLA/behavior notes: max 5 accounts per dataset per complete-consent call (else error 40400); `source_signature`/`signature_signing_algorithm`/`signature_signing_key_version`/`data_salt` added to more example responses; clarified `validate_service_extension` semantics (subset match, paired with an explicit `service_extension: []` on every `consent_token` service_id_list entry) and that all four registration fields are required on a service_id's *first* registration (only optional on updates).
 - Switched example `language` fields from `"TH"` to `"EN"` throughout.
 
 ## v1.3

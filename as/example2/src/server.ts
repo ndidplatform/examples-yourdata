@@ -386,13 +386,16 @@ async function handleNdidDataRequest(data: NdidDataRequestCallback): Promise<voi
         validate_identifier: true,
         validate_service_id: true,
         validate_service_extension: false,
-        ...(intent.token_objective ? { token_objective: intent.token_objective } : {}),
+        // token_objective is NOT set on the as_token itself — it travels inside
+        // the embedded intent below and is applied to the consent_token at
+        // complete-consent.
         service_id_list: [
           {
             service_id: '900.complete_consent_001',
             service_version: 'v1',
             service_extension: [
               JSON.stringify({
+                ...(intent.token_objective ? { token_objective: intent.token_objective } : {}),
                 usage_type: intent.usage_type,
                 ...(intent.expiration_datetime !== undefined
                   ? { expiration_datetime: intent.expiration_datetime }
@@ -472,7 +475,6 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
       const intent = consentIntentMap.get(data.authorization);
       const preConsentPayload = decodeTokenPayload(data.authorization) as {
         source_request_id_list?: string[];
-        token_objective?: string;
         service_id_list?: Array<{ service_id: string; service_extension?: string[] }>;
       } | null;
 
@@ -487,16 +489,17 @@ async function handleYourDataRequest(data: YourDataAsDataRequestCallback): Promi
         if (rawExt) {
           try {
             const parsedExt = JSON.parse(rawExt) as {
+              token_objective?: string;
               usage_type?: YourDataUsageType;
               expiration_datetime?: number;
               data_service_list?: ConsentIntent['data_service_list'];
             };
+            token_objective ??= parsedExt.token_objective;
             usage_type ??= parsedExt.usage_type;
             requestedExpiration ??= parsedExt.expiration_datetime;
             data_service_list ??= parsedExt.data_service_list;
           } catch { /* malformed — nothing recoverable */ }
         }
-        token_objective ??= preConsentPayload?.token_objective;
       }
 
       if (!usage_type || !sub_identity_list || sub_identity_list.length === 0) {

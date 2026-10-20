@@ -1168,7 +1168,7 @@
       <div>
         <h1>YourData API — Interactive Flow Guide</h1>
         <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 2px">
-          NDID Platform · Centralized Data Exchange Mechanism · v1.4.1
+          NDID Platform · Centralized Data Exchange Mechanism · v1.4.2
         </div>
       </div>
       <div class="badge">DC / RP Developer Guide</div>
@@ -4428,8 +4428,7 @@
       // lastLedgerBalanceCurrency in a required balanceInfo array. Loan's
       // statement response nests its billing-cycle entries under
       // statementEntries (not accountStatementTransactions), matching Deposit/
-      // e-Money's naming; duePayemntDate is a genuine typo in the published
-      // Loan spec, kept as-is intentionally.
+      // e-Money's naming.
       //
       // Basic vs Detail is now a hasDetail param baked in by which service_id's
       // wrapper called it below (Basic/Detail is a service_id choice, not a
@@ -4855,7 +4854,7 @@
             statementEntries: [
               {
                 billDate: "2026-06",
-                duePayemntDate: "2026-06-05",
+                duePaymentDate: "2026-06-05",
                 billAmount: 3200,
                 contractRemainingAmount: 72000,
                 contractRemainingCurrency: "THB",
