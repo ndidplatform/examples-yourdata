@@ -4,6 +4,10 @@ Covers `yourdata-api-guide.html` and `yourdata-api-guide.md`, which are kept in 
 
 Compiled by diffing the four version snapshots in `~/Downloads` (`yourdata-api-guide-v1.1.html` through `-v1.4.html`) plus this session's own edits. No copy of v1.0 or earlier was available locally, so nothing before v1.1 is documented here. Release dates aren't included — the only date signal available (file mtimes) reflects when each copy was last saved/downloaded, not necessarily when the version was authored, so it isn't reliable enough to state as fact.
 
+## v1.4.3
+
+- **`token_objective` in the Markdown guide** (`.md` only — the HTML already had it): added `token_objective` to the §8.1 pre-consent `request_params` (both datasets), the §8.4 AS callback echo, the §8.5 as_token embedded intent, and both §9.3 consent_token bodies. Also added notes in §8.1 and §8.5 on how the AS carries it through. Before this, the Field-by-Field Guideline table said consent_token's `token_objective` comes from the RP's §8.1 request, but none of the `.md` JSON examples showed it. The HTML demo's generated payloads already included it, so the only HTML change is the version number.
+
 ## v1.4.2
 
 - **Loan — Statement entries**: renamed `duePayemntDate` → `duePaymentDate`. The typo has been fixed in the published SwaggerHub Loan spec, so the guide no longer carries it over (supersedes the v1.4.1 note below about leaving it as-is).

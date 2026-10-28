@@ -1,6 +1,6 @@
 # YourData API — Developer Guide
 
-NDID Platform · Centralized Data Exchange Mechanism · v1.4.2  
+NDID Platform · Centralized Data Exchange Mechanism · v1.4.3  
 Audience: **DC / RP (Data Consumer)** developers
 
 ---
@@ -408,13 +408,13 @@ POST /v7/rp/requests/citizen_id/{identifier}
       "service_id": "900.pre_consent_deposit_001",
       "as_id_list": ["as1", "as2"],
       "min_as": 0,
-      "request_params": "{\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"accountSubType\":\"ALL\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}"
+      "request_params": "{\"token_objective\":\"เพื่อการพิจารณาให้สินเชื่อ\",\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"accountSubType\":\"ALL\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}"
     },
     {
       "service_id": "900.pre_consent_cardpayment_001",
       "as_id_list": ["as1"],
       "min_as": 0,
-      "request_params": "{\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}"
+      "request_params": "{\"token_objective\":\"เพื่อการพิจารณาให้สินเชื่อ\",\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.cardpayment_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}"
     }
   ],
   "request_message": "Please consent to share your data (REF: pre-consent-xxx)",
@@ -429,6 +429,7 @@ POST /v7/rp/requests/citizen_id/{identifier}
 > `namespace`/`identifier` are **URL path params** (`/v7/rp/requests/citizen_id/{identifier}`), not body fields. `bypass_identity_check` is required when `mode` is `2` or `3` — `false` means the platform verifies each IdP in `idp_id_list` actually has this identity onboarded at the required IAL before routing to it.  
 > **This use case only uses `mode: 2`** — carried through unchanged from identity registration (§7.1) through every step of the flow (pre-consent, complete-consent, data request, revoke). It's echoed in the IDP callback (§8.2), the AS callback (§8.4), and every status callback — always the same value the RP originally sent here.  
 > **`request_params`** is a JSON-stringified object. To NDID's platform it's an opaque string (`request_params: { type: 'string' }` on this on-chain endpoint's route schema — no `minLength`, so an empty string technically passes; the separate off-chain `/v7/yourdata/rp/requests` endpoint used in §9.1/§10.1 *does* enforce `minLength: 1`) — the platform never parses it, only the AS does. Every dataset carries `usage_type` + `data_service_list`, plus a dataset-specific set of fields defined by NDID's [YourData_Schema_Common](https://app.swaggerhub.com/apis/NDID/YourData_Schema_Common/1.0.1) reference schema:
+> - **All datasets**: `token_objective` (free-text purpose of the consent, e.g. loan application assessment). The AS carries it into the as_token's embedded intent (§8.5) and sets it as `token_objective` on every consent_token (§9.3)
 > - **Deposit**: `language` (`TH`/`EN`, mandatory) + `accountSubType` (mandatory — the spec ships only an example value, `SAVINGS`, with no formal enum; in practice AS's also accept `CURRENT`, `TERM`, and `ALL` for every subtype) + `auxiliaryReferenceId` (optional, 1–50 chars, echoed back by the AS if provided)
 > - **Card Payment / e-Money** (shown above for Card Payment): `language` (mandatory) + `auxiliaryReferenceId` (optional) — no `accountSubType`
 > - **Loan**: `language` (mandatory) + `loanTypeCode` (mandatory — not `accountSubType`) + `auxiliaryReferenceId` (optional)
@@ -508,7 +509,7 @@ Callback → `POST /as/service/{service_id}` — example for `900.pre_consent_de
   "identifier": "1234567890123",
   "service_id": "900.pre_consent_deposit_001",
   "requester_node_id": "rp1",
-  "request_params": "{\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"accountSubType\":\"ALL\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}",
+  "request_params": "{\"token_objective\":\"เพื่อการพิจารณาให้สินเชื่อ\",\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}],\"language\":\"EN\",\"accountSubType\":\"ALL\",\"auxiliaryReferenceId\":\"aux-pre-consent-1750000000000\"}",
   "response_signature_list": ["<base64-signature>"],
   "max_ial": 2.3,
   "max_aal": 2.1,
@@ -541,14 +542,14 @@ POST /v7/yourdata/utility/token
       "service_id": "900.complete_consent_001",
       "service_version": "v1",
       "service_extension": [
-        "{\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}]}"
+        "{\"token_objective\":\"เพื่อการพิจารณาให้สินเชื่อ\",\"usage_type\":\"one_time\",\"data_service_list\":[{\"service_id\":\"900.deposit_transactions_basic_001\",\"service_version\":\"v1\"}]}"
       ]
     }
   ]
 }
 ```
 
-> The `service_extension[0]` on `complete_consent_001` carries the original intent (usage_type + data_service_list, plus `expiration_datetime` alongside `usage_type` when it's `continuous_with_expire` — same placement as §8.1) so the AS can reconstruct it during complete-consent without the RP re-sending it.
+> The `service_extension[0]` on `complete_consent_001` carries the original intent (`token_objective` + usage_type + data_service_list, plus `expiration_datetime` alongside `usage_type` when it's `continuous_with_expire` — same placement as §8.1) so the AS can reconstruct it during complete-consent without the RP re-sending it.
 >
 > **The embedded `data_service_list` reflects only what this AS can actually provide.** The RP's requested `data_service_list` (from the pre-consent callback, §8.4) may include more service_ids than a given AS supports — the AS includes only the service_ids it can genuinely serve in the intent it embeds here, silently omitting the rest. **If none of the requested service_ids can be provided at all, the AS responds with error `40400` (Invalid data)** instead of creating an as_token with an empty `data_service_list`. This decision is made once, here at pre-consent — complete-consent (§9.3) just honors whatever was resolved into this embedded intent.
 >
@@ -738,6 +739,7 @@ Token create body (token 1/2, `one_time`):
   "namespace": "citizen_id",
   "identifier": "1234567890123",
   "source_request_id_list": ["req-pre-xxxx", "req-cc-deposit-as1"],
+  "token_objective": "เพื่อการพิจารณาให้สินเชื่อ",
   "usage_type": "one_time",
   "expiration_datetime": 1752592000,
   "validate_identifier": true,
@@ -769,6 +771,7 @@ Token create body (token 1, `continuous_with_expire`, all services):
   "requester_node_id": "rp1",
   "as_node_id": "as1",
   "source_request_id_list": ["req-pre-xxxx", "req-cc-deposit-as1"],
+  "token_objective": "เพื่อการพิจารณาให้สินเชื่อ",
   "usage_type": "continuous_with_expire",
   "expiration_datetime": 1757808000,
   "validate_identifier": true,
